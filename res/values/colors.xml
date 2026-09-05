@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 小清新配色：马卡龙 / 奶白 / 薄荷 / 浅蓝 -->
+    <color name="sakura_primary">#7CB9E8</color>      <!-- 浅天蓝 -->
+    <color name="sakura_primary_dark">#5A9BD5</color> <!-- 略深一点的蓝 -->
+    <color name="sakura_bg">#FFFDF7</color>           <!-- 奶白底 -->
+    <color name="sakura_card">#FFFFFF</color>          <!-- 卡片白 -->
+    <color name="sakura_text">#37474F</color>          <!-- 深蓝灰正文 -->
+    <color name="sakura_subtext">#90A4AE</color>       <!-- 浅灰副文 -->
+    <color name="sakura_mint">#A8D8B9</color>          <!-- 薄荷绿 -->
+    <color name="sakura_coral">#F6B8B8</color>         <!-- 珊瑚粉 -->
+    <color name="sakura_lavender">#C9B6F2</color>      <!-- 薰衣草紫 -->
+    <color name="sakura_peach">#FFD8A8</color>         <!-- 蜜桃橙 -->
+    <color name="sakura_blue">#B3D4F0</color>          <!-- 婴儿蓝 -->
+
+    <!-- 日志分级配色（区分度高、浅色底也清晰） -->
+    <color name="log_info">#0288D1</color>     <!-- 蓝：普通消息 -->
+    <color name="log_ok">#2E7D32</color>       <!-- 绿：成功 -->
+    <color name="log_warn">#F57C00</color>     <!-- 橙：警告 -->
+    <color name="log_error">#D32F2F</color>    <!-- 红：错误 -->
+    <color name="log_notify">#7B1FA2</color>   <!-- 紫：收到通知 -->
+    <color name="log_muted">#90A4AE</color>    <!-- 灰：系统/时间 -->
+
+    <!-- Toast 配色：浅色底 + 深色字，清晰可读 -->
+    <color name="toast_bg">#F1F8E9</color>     <!-- 浅薄荷底 -->
+    <color name="toast_text">#2E7D32</color>   <!-- 深绿字 -->
+    <color name="toast_err_bg">#FDEDEC</color> <!-- 浅粉底 -->
+    <color name="toast_err_text">#C0392B</color>
+</resources>

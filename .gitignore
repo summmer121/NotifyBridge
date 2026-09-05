@@ -1,0 +1,9 @@
+# 签名密钥与本地构建（绝不提交）
+*.jks
+*.keystore
+debug.keystore
+build/
+obj/
+gen/
+# 内部交接文档（含内部路径，不公开）
+交接文档.md

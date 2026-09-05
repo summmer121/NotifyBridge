@@ -1,0 +1,69 @@
+#!/bin/bash
+# NotifyBridge 固定签名构建脚本。
+# 关键：使用项目外永久 keystore，保证每次安装签名一致（否则覆盖安装破坏通知使用权授权）。
+set -e
+
+export ANDROID_HOME=${ANDROID_HOME:-/opt/android-sdk}
+# 自动探测 build-tools：优先 35.0.0（compileSdk 35 / windowOptOutEdgeToEdgeEnforcement 需要），否则回退已安装的最高版本
+if [ -d "$ANDROID_HOME/build-tools/35.0.0" ]; then
+    BT=$ANDROID_HOME/build-tools/35.0.0
+else
+    BT=$(ls -d $ANDROID_HOME/build-tools/*/ 2>/dev/null | sort -V | tail -1)
+    BT=${BT%/}
+fi
+export PATH=$BT:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+ANDROID_JAR=$ANDROID_HOME/platforms/android-35/android.jar
+echo ">> 使用 build-tools: $BT"
+
+PROJECT_DIR=${PROJECT_DIR:-/root/NotifyBridge}
+KS=/path/to/your/notifybridge.jks
+KS_PASS=CHANGE_ME_YOUR_KEYSTORE_PASSWORD
+KS_ALIAS=notifybridge
+APP_NAME=NotifyBridge
+BUILD_DIR=$PROJECT_DIR/build
+
+# 只清理编译产物，绝不删除 keystore
+rm -rf $BUILD_DIR/gen $BUILD_DIR/obj $BUILD_DIR/*.apk $BUILD_DIR/compiled_res.zip $BUILD_DIR/classes.dex
+mkdir -p $BUILD_DIR/gen $BUILD_DIR/obj
+cd $PROJECT_DIR
+
+echo "=== 1/6 aapt2 compile resources ==="
+aapt2 compile --dir res -o $BUILD_DIR/compiled_res.zip
+
+echo "=== 2/6 aapt2 link (with assets) ==="
+aapt2 link -o $BUILD_DIR/app-unsigned.apk \
+    -I $ANDROID_JAR \
+    --manifest AndroidManifest.xml \
+    --java $BUILD_DIR/gen \
+    -A assets \
+    $BUILD_DIR/compiled_res.zip
+
+echo "=== 3/6 javac (Xposed API on classpath, NOT in dex) ==="
+find src -name "*.java" > $BUILD_DIR/sources.txt
+find $BUILD_DIR/gen -name "*.java" >> $BUILD_DIR/sources.txt
+javac -d $BUILD_DIR/obj -classpath "$ANDROID_JAR:libs/xposed-api.jar" -source 1.8 -target 1.8 @$BUILD_DIR/sources.txt
+
+echo "=== 4/6 d8 ==="
+( cd $BUILD_DIR/obj && d8 --output $BUILD_DIR/ $(find . -name "*.class") )
+
+echo "=== 5/6 package + zipalign ==="
+cp $BUILD_DIR/app-unsigned.apk $BUILD_DIR/app-unaligned.apk
+( cd $BUILD_DIR && zip -uj app-unaligned.apk classes.dex )
+zipalign -f 4 $BUILD_DIR/app-unaligned.apk $BUILD_DIR/app-aligned.apk
+
+echo "=== 6/6 SIGN with FIXED keystore (never recreated) ==="
+apksigner sign \
+    --ks $KS --ks-pass pass:$KS_PASS \
+    --key-pass pass:$KS_PASS \
+    --ks-key-alias $KS_ALIAS \
+    --out $BUILD_DIR/$APP_NAME.apk \
+    $BUILD_DIR/app-aligned.apk
+
+echo "=== verify ==="
+apksigner verify -v $BUILD_DIR/$APP_NAME.apk | grep -E "Verifies|Verified using v[123]"
+
+echo ""
+echo "✅ APK: $BUILD_DIR/$APP_NAME.apk"
+SHA256_SHA=$(keytool -list -v -keystore $KS -storepass $KS_PASS -alias $KS_ALIAS 2>/dev/null | grep SHA256)
+echo "签名指纹: $SHA256_SHA"
+ls -lh $BUILD_DIR/$APP_NAME.apk

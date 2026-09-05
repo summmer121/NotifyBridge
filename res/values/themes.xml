@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        小清新主题：基于 Material Light，强制浅色。
+        无论系统深浅色模式，本 App 固定浅色，避免背景变黑导致文字/Toast 看不清。
+
+        小米15 / 澎湃OS 全面屏适配：
+        - windowLayoutInDisplayCutoutMode=shortEdges：内容铺到挖孔/全面屏区域
+        - windowBackground 铺满奶白，底部手势条区域不再是黑
+        - 状态栏/导航栏明确浅色 + 深色图标
+    -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/sakura_primary</item>
+        <item name="android:colorPrimaryDark">@color/sakura_primary_dark</item>
+        <item name="android:colorAccent">@color/sakura_mint</item>
+        <item name="android:windowBackground">@color/sakura_bg</item>
+        <item name="android:textColorPrimary">@color/sakura_text</item>
+        <item name="android:textColorSecondary">@color/sakura_subtext</item>
+        <item name="android:colorBackground">@color/sakura_bg</item>
+
+        <!-- 底部导航栏 & 状态栏：奶白/浅蓝 + 深色图标，规避小米手势条黑色 -->
+        <item name="android:navigationBarColor">@color/sakura_bg</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">@color/sakura_primary</item>
+        <item name="android:windowLightStatusBar">true</item>
+
+        <!-- 全面屏/挖孔：内容铺满到屏幕边缘（API 27+，低版本自动忽略） -->
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

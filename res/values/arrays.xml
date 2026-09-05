@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LSPosed 作用域：Hook 微信等拿到“电脑登录也不推送”的消息；含自身用于测试 -->
+    <string-array name="xposedscope">
+        <item>com.tencent.mm</item>
+        <item>com.tencent.wework</item>
+        <item>com.notifybridge.app</item>
+    </string-array>
+</resources>

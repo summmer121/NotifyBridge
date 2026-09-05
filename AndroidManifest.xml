@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.notifybridge.app"
+    android:versionCode="6"
+    android:versionName="6.0">
+
+    <!-- 兼容 API 21+ (Android 5.0) -->
+    <uses-sdk
+        android:minSdkVersion="21"
+        android:targetSdkVersion="35" />
+
+    <!-- 网络权限：上传到 WebDAV -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 精确闹钟：定时批量上传（Android 12+ 需声明） -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 前台服务保活（Android 14+ 需分类型权限） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- 开机自启：重启后恢复监听与定时任务 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- 已安装应用包可见性：通知过滤需枚举全部已安装 App（Android 11+ 必须声明，
+         否则 getInstalledApplications 只返回受限的一小部分，导致"应用显示不全"） -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/AppTheme"
+        android:windowOptOutEdgeToEdgeEnforcement="true"
+        android:usesCleartextTraffic="true"
+        android:allowBackup="true">
+
+        <!-- 主界面 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 应用过滤设置界面 -->
+        <activity
+            android:name=".FilterActivity"
+            android:exported="false" />
+
+        <!-- AI 模型配置界面 -->
+        <activity
+            android:name=".AiConfigActivity"
+            android:exported="false" />
+
+        <!-- 通知监听服务：需要用户在系统设置中手动开启“通知使用权” -->
+        <service
+            android:name=".NotifyListener"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- 前台保活服务 -->
+        <service
+            android:name=".KeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- 定时批量上传触发器 -->
+        <receiver
+            android:name=".UploadReceiver"
+            android:exported="false" />
+
+        <!-- 开机广播 -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Xposed：接收模块Hook到的“非系统通知”消息（微信电脑登录等场景） -->
+        <receiver
+            android:name=".NotifyXposedReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.notifybridge.app.XP_MSG" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Xposed / LSPosed 模块声明 -->
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="NotifyBridge 消息获取（Xposed模式）：Hook 微信等获取“电脑登录也不推送”的消息" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="93" />
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposedscope" />
+
+    </application>
+</manifest>
