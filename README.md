@@ -70,3 +70,29 @@ bash build_fixed.sh.example
 
 - 本仓库已做**脱敏**：不含任何真实服务器地址、账号、密钥、token 或签名 keystore 密码。
 - 你自己的构建脚本/keystore 请通过 `.gitignore` 排除，切勿提交。
+
+## v12.1 构建修复（重要）
+
+LSPosed 曾报错：
+
+```text
+Cannot load module: com.notifybridge.app
+The Xposed API classes are compiled into the module's APK.
+```
+
+原因是旧构建脚本把 `libs/xposed-api.jar` 一并打进了 `classes.dex`。Xposed API 必须只作为 `javac` 的编译依赖，不能进入 APK。
+
+已在 `build-fixed.ps1` 中修复：
+
+- `javac -classpath libs/xposed-api.jar`
+- `d8` 只输入应用自身 `.class`
+- `--classpath libs/xposed-api.jar` 仅用于解析引用
+- 最终 APK 不包含 `de/robv/android/xposed/**`
+- 版本升级为 `versionCode=8`、`versionName=12.1`
+
+Windows 构建示例：
+
+```powershell
+subst X: E:\临时路径\codex
+powershell -ExecutionPolicy Bypass -File X:\NotifyBridge-fix\build-fixed.ps1
+```
