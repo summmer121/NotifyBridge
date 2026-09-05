@@ -511,7 +511,7 @@ public class MainActivity extends Activity {
     private void refreshHomeStats() {
         if (statToday == null) return;
         List<String> lines = LogStore.read(this, 1000);
-        AiAnalyzer.Summary s = AiAnalyzer.analyze(lines);
+        AiAnalyzerCore.Summary s = AiAnalyzerCore.analyze(lines);
         statToday.setText(String.valueOf(s.totalNotices));
         statNotice = null;
 
@@ -930,7 +930,7 @@ public class MainActivity extends Activity {
         }
         // 用本地规则做概览统计（轻量，不联网）
         List<String> lines = LogStore.read(this, 300);
-        AiAnalyzer.Summary s = AiAnalyzer.analyze(lines);
+        AiAnalyzerCore.Summary s = AiAnalyzerCore.analyze(lines);
         tvAiCount.setText("今日 " + s.totalNotices + " 条通知 · " + (AIAnalyzer.isDirect(this) ? "AI直连" : "中转/本地"));
         setStat(tvAiWork, "📊 " + s.workCount + " 工作");
         setStat(tvAiTodo, "✅ " + s.todoCount + " 待办");

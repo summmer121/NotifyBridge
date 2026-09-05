@@ -15,7 +15,7 @@ import java.util.List;
  *   >> RAW [14:29:00] com.tencent.mm
  * ）
  */
-public final class AiAnalyzer {
+public final class AiAnalyzerCore {
 
     /** 一条通知条目（解析后）。 */
     public static class Notice {
@@ -44,7 +44,7 @@ public final class AiAnalyzer {
         public List<String> suggestions = new ArrayList<>(); // 建议
     }
 
-    private AiAnalyzer() {}
+    private AiAnalyzerCore() {}
 
     // 关键词库（可扩展；后续可从 Config 读取用户自定义关键词）
     private static final String[] KW_WORK = {"工作","项目","汇报","报告","需求","评审","方案","预算","会议记录","周报","邮件","审批","合同","技术","客户","版本","发版","测试","代码","上线","部署"};

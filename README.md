@@ -29,7 +29,7 @@ update(String, ContentValues, String, String[])
 updateWithOnConflict(String, ContentValues, String, String[], int)
 ```
 
-> 调试经验：给定标签的写方法 `probe = 0` 不代表 Hook 点错误 —— 已用反射 SIG 自检证明签名匹配。若 hook 全部挂载但零捕获，说明目标版本可能走更底层的 `SQLiteStatement`/编译语句路径，需继续向下切点。
+> **v12 修复要点：此前“10 个方法全挂载但 probe=0”的关键原因不在 SQLiteStatement，而在 ClassLoader 时机。** MIUI/Tinker 场景下，`handleLoadPackage()` 拿到的 loader 可能指向 `com.miui.contentcatcher` 或补丁壳；现在会先尝试当前 loader，再 Hook `Instrumentation.callApplicationOnCreate()`，等微信真实 `Application` 创建后，用 `app.getClassLoader()`（Tinker 合并后的最终 loader）重新挂载 WCDB。
 
 ## 版本演进 & 当前状态
 
@@ -43,7 +43,7 @@ updateWithOnConflict(String, ContentValues, String, String[], int)
 | **v9** | 探针诊断 | `wcdbProbe` 探针（按表名去重）；定案设备微信 = **8.0.77 build 3160**；probe=0 = 测试窗口没真写库 | 定位"probe=0 ≠ hook 错" |
 | **v10** | 签名自检 | 反射 SIG 自检，**一次定案 8.0.77 的 10 个 WCDB 写方法真实签名**；补 insertOrThrow/replace 宽覆盖 | 证明之前 hook 签名全部匹配 |
 | **v11** | 全覆盖 | 补 replaceOrThrow/updateWithOnConflict/execSQL，**全覆盖 10 写方法** + execSQL 携带 SQL 探针（[NotifyX][SQL] 表名::完整SQL） | 最新日志确认 10 方法全挂载 + SIG 对齐 |
-| **v12（待定）** | 底层切点 | 10 方法全挂载仍 probe=0 → 怀疑微信 8.0.77 写消息不走 ContentValues/execSQL 高层，而走底层 `SQLiteStatement` | **方向已锁定，待实机确认** |
+| **v12** | ClassLoader 修复 | 同时识别 `packageName/processName`；等待 `callApplicationOnCreate` 后用微信真实 Application 的最终 ClassLoader 挂载 WCDB；显式广播到 `NotifyXposedReceiver` | **修复 MIUI/Tinker 下 Hook 挂载到错误 loader 的问题** |
 
 **当前判定标准（v11 及以后）**：成功签名 = `[NotifyX][SQL]` 或 probe 任一出现（证明微信真的写了库、能拿到表名/字段）。两者都 0 → 换更底层 `SQLiteStatement` 切点。静音/免打扰会话同样落库，因此本项目走**数据层 Hook** 是捕获静音会话的唯一路径（通知层抓不到静音会话）。
 

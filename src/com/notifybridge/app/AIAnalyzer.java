@@ -25,7 +25,7 @@ public final class AIAnalyzer {
     // 预置默认 AI（OpenAI 兼容直连）
     public static final String PRESET_BASE_URL = "http://your-ai-endpoint-host:port/v1/chat/completions";
     public static final String PRESET_MODEL = "DeepSeek-V4-Flash-0731-w8a8";
-    public static final String PRESET_API_KEY = "sk-jpPeVq2xhlskT6UpVXEaPLoxi0X08plbUPyfFtcVoHIC59aS";
+    public static final String PRESET_API_KEY = "";
 
     // 默认通知沉淀提示词（用户可在 AI 配置里修改，修改后存 Config.KEY_AI_PROMPT）
     public static final String DEFAULT_PROMPT =
@@ -99,21 +99,21 @@ public final class AIAnalyzer {
     }
 
     /** 分析通知（优先真实 AI，失败或未配置降级本地规则）。返回可展示摘要 + 分类。 */
-    public static AiAnalyzer.Summary analyze(Context ctx, List<String> lines) {
+    public static AiAnalyzerCore.Summary analyze(Context ctx, List<String> lines) {
         // 尝试真实 AI
         AIResult r = tryRealAi(ctx, lines);
         if (r.ok && r.text != null && !r.text.trim().isEmpty()) {
-            AiAnalyzer.Summary s = AiAnalyzer.analyze(lines);           // 先用本地算统计
+            AiAnalyzerCore.Summary s = AiAnalyzerCore.analyze(lines);           // 先用本地算统计
             s.digest = r.text.trim();                                   // 用 AI 摘要覆盖
             return s;
         }
         // 降级本地规则
-        return AiAnalyzer.analyze(lines);
+        return AiAnalyzerCore.analyze(lines);
     }
 
     /** 生成纪要（优先真实 AI，失败降级本地）。 */
     public static String buildReport(Context ctx, String dateStr, List<String> lines) {
-        AiAnalyzer.Summary s = AiAnalyzer.analyze(lines);
+        AiAnalyzerCore.Summary s = AiAnalyzerCore.analyze(lines);
         // 尝试真实 AI 生成纪要
         AIResult r = tryRealAi(ctx, lines);
         if (r.ok && r.text != null && !r.text.trim().isEmpty()) {
@@ -121,7 +121,7 @@ public final class AIAnalyzer {
             return r.text.trim();
         }
         LogStore.diag(ctx, "⚠️ AI 未返回有效纪要 (ok=" + r.ok + ", err=" + r.error + ")，降级本地规则");
-        return AiAnalyzer.buildReport(dateStr, s) + "\n\n>（当前为本地规则生成；配置 AI 模型后可生成智能纪要）";
+        return AiAnalyzerCore.buildReport(dateStr, s) + "\n\n>（当前为本地规则生成；配置 AI 模型后可生成智能纪要）";
     }
 
     private static AIResult tryRealAi(Context ctx, List<String> lines) {

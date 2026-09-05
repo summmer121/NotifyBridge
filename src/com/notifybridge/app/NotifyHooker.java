@@ -1,5 +1,8 @@
 package com.notifybridge.app;
 
+import android.app.Application;
+import android.app.Instrumentation;
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -45,6 +48,9 @@ public class NotifyHooker implements IXposedHookLoadPackage {
     };
     private static final long DEDUP_WINDOW_MS = 8000L;
 
+    private static volatile boolean wcdbHooked = false;
+    private static volatile Context wechatContext;
+
     /** 探针去重：每种 (方法,表名) 只打第一条，给出真实表名 + ContentValues key 集合（诊断用，避免刷屏）。 */
     private static final java.util.Set<String> WCDB_PROBED =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -71,7 +77,11 @@ public class NotifyHooker implements IXposedHookLoadPackage {
             return;
         }
         // 目标 App：微信（主钩点）+ 企业微信/钉钉可扩展
-        if ("com.tencent.mm".equals(pkg)) {
+        String proc = lpparam.processName;
+        boolean isWeChat = "com.tencent.mm".equals(pkg)
+                || "com.tencent.mm".equals(proc)
+                || (proc != null && proc.startsWith("com.tencent.mm:"));
+        if (isWeChat) {
             hookWeChat(lpparam);
         } else if ("com.tencent.wework".equals(pkg)) {
             hookGeneric(lpparam, "com.tencent.wework");
@@ -241,16 +251,52 @@ public class NotifyHooker implements IXposedHookLoadPackage {
      * after 拿 ContentValues 解析——数据层切点能覆盖静音/勿扰/电脑登录等不发系统通知的场景。
      */
     private void hookWeChatWcdb(XC_LoadPackage.LoadPackageParam lpparam) {
+        // Fast path: a child process loader may already point to WeChat base.apk.
+        tryHookWeChatWcdb(lpparam.classLoader);
+
+        // Critical fallback for MIUI/Tinker: the loader at handleLoadPackage can point
+        // to ContentCatcher or the patch shell. Wait for WeChat's real Application,
+        // then install WCDB hooks with its final merged ClassLoader.
+        try {
+            XposedHelpers.findAndHookMethod(
+                    Instrumentation.class,
+                    "callApplicationOnCreate",
+                    Application.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            try {
+                                if (param.args == null || param.args.length == 0
+                                        || !(param.args[0] instanceof Application)) return;
+                                Application app = (Application) param.args[0];
+                                try {
+                                    Context ctx = app.getApplicationContext();
+                                    wechatContext = ctx == null ? app : ctx;
+                                } catch (Throwable ignored) {}
+                                tryHookWeChatWcdb(app.getClassLoader());
+                            } catch (Throwable t) {
+                                try { XposedBridge.log("[NotifyX][WCDB] callApplicationOnCreate callback failed: " + t); } catch (Throwable ignored) {}
+                            }
+                        }
+                    });
+            try { XposedBridge.log("[NotifyX][INIT]   + hooked Instrumentation.callApplicationOnCreate (wait final ClassLoader)"); } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            try { XposedBridge.log("[NotifyX][INIT]   - hook callApplicationOnCreate fail: " + t); } catch (Throwable ignored) {}
+        }
+    }
+
+    private void tryHookWeChatWcdb(ClassLoader classLoader) {
+        if (wcdbHooked || classLoader == null) return;
         final String WCDB = "com.tencent.wcdb.database.SQLiteDatabase";
         Class<?> wcdb;
         try {
-            wcdb = XposedHelpers.findClass(WCDB, lpparam.classLoader);
+            wcdb = XposedHelpers.findClass(WCDB, classLoader);
         } catch (Throwable t) {
-            try { XposedBridge.log("[NotifyX][INIT]   - WCDB 类不存在，该版本微信可能不走 WCDB: " + t); } catch (Throwable ignored) {}
+            try { XposedBridge.log("[NotifyX][WCDB] class not ready, wait real Application loader: " + classLoader); } catch (Throwable ignored) {}
             return;
         }
+        try { XposedBridge.log("[NotifyX][WCDB] + install with WeChat real ClassLoader: " + classLoader); } catch (Throwable ignored) {}
 
-        // 签名自检：dump 本类所有 insert*/replace/update/execSQL 写方法的真实签名，一次 verbose 定案 8.0.77 的正确切点
         dumpWcdbWriteMethods(wcdb);
 
         // insertWithOnConflict(String table, String nullColumnHack, ContentValues v, int conflictAlgorithm)
@@ -267,13 +313,14 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 // 只关心消息/聊天会话表，过滤掉其他业务表
                                 if (!"message".equalsIgnoreCase(table) && !"AppMessage".equalsIgnoreCase(table)
                                         && !isMsgTable(table)) return;
-                                String parsed = extractBody(cv);
+                                String parsed = formatWeChatMessage(table, cv);
                                 if (parsed != null && !parsed.isEmpty()) {
                                     broadcastWeChat("com.tencent.mm", parsed);
                                 }
                             } catch (Throwable ignored) {}
                         }
                     });
+        wcdbHooked = true; // Avoid duplicate installation after Application retries.
             try { XposedBridge.log("[NotifyX][WCDB]   ✓ hooked WCDB.insertWithOnConflict 数据层(message/AppMessage)"); } catch (Throwable ignored) {}
         } catch (Throwable t) {
             try { XposedBridge.log("[NotifyX][WCDB]   - hook WCDB.insertWithOnConflict fail: " + t); } catch (Throwable ignored) {}
@@ -292,7 +339,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 wcdbProbe("insert", table, cv);
                                 if (!"message".equalsIgnoreCase(table) && !"AppMessage".equalsIgnoreCase(table)
                                         && !isMsgTable(table)) return;
-                                String parsed = extractBody(cv);
+                                String parsed = formatWeChatMessage(table, cv);
                                 if (parsed != null && !parsed.isEmpty()) {
                                     broadcastWeChat("com.tencent.mm", parsed);
                                 }
@@ -317,7 +364,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 wcdbProbe("update", table, cv);
                                 if (!"message".equalsIgnoreCase(table) && !"AppMessage".equalsIgnoreCase(table)
                                         && !isMsgTable(table)) return;
-                                String parsed = extractBody(cv);
+                                String parsed = formatWeChatMessage(table, cv);
                                 if (parsed != null && !parsed.isEmpty()) {
                                     broadcastWeChat("com.tencent.mm", parsed);
                                 }
@@ -342,7 +389,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 wcdbProbe("insertOrThrow", table, cv);
                                 if (!"message".equalsIgnoreCase(table) && !"AppMessage".equalsIgnoreCase(table)
                                         && !isMsgTable(table)) return;
-                                String parsed = extractBody(cv);
+                                String parsed = formatWeChatMessage(table, cv);
                                 if (parsed != null && !parsed.isEmpty()) {
                                     broadcastWeChat("com.tencent.mm", parsed);
                                 }
@@ -367,7 +414,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 wcdbProbe("replace", table, cv);
                                 if (!"message".equalsIgnoreCase(table) && !"AppMessage".equalsIgnoreCase(table)
                                         && !isMsgTable(table)) return;
-                                String parsed = extractBody(cv);
+                                String parsed = formatWeChatMessage(table, cv);
                                 if (parsed != null && !parsed.isEmpty()) {
                                     broadcastWeChat("com.tencent.mm", parsed);
                                 }
@@ -484,6 +531,66 @@ public class NotifyHooker implements IXposedHookLoadPackage {
     }
 
     /** 是否为消息/聊天相关的表或 URI（小写关键词匹配，尽量宽）。 */
+    private String formatWeChatMessage(String table, ContentValues cv) {
+        if (cv == null) return null;
+        if ("message".equalsIgnoreCase(table)) {
+            String talker = strValue(cv.get("talker"));
+            String content = strValue(cv.get("content"));
+            int type = intValue(cv.get("type"));
+            int isSend = intValue(cv.get("isSend"));
+            String dir = isSend == 1 ? "\u53d1\u51fa" : "\u6536\u5230";
+            String kind;
+            if (type == 1) kind = "\u6587\u672c";
+            else if (type == 3) kind = "\u56fe\u7247";
+            else if (type == 34) kind = "\u8bed\u97f3";
+            else if (type == 43) kind = "\u89c6\u9891";
+            else if (type == 47) kind = "\u8868\u60c5";
+            else if (type == 49) kind = "\u94fe\u63a5/\u5361\u7247";
+            else if (type == 436207665) kind = "\u7ea2\u5305";
+            else if (type == 419430449) kind = "\u8f6c\u8d26";
+            else if (type == 10000) kind = "\u7cfb\u7edf\u6d88\u606f";
+            else kind = "\u6d88\u606f";
+            String body = friendlyWeChatText(content);
+            if (body == null || body.isEmpty()) body = "\uff08\u5185\u5bb9\u89c1\u5fae\u4fe1\uff09";
+            return (talker.isEmpty() ? "WeChat" : talker) + " / " + dir + kind + ": " + body;
+        }
+        if ("AppMessage".equalsIgnoreCase(table)) {
+            String talker = strValue(cv.get("talker"));
+            String title = strValue(cv.get("title"));
+            String desc = strValue(cv.get("description"));
+            String content = strValue(cv.get("content"));
+            String body = desc == null || desc.isEmpty() ? content : desc;
+            body = friendlyWeChatText(body);
+            if (body == null || body.isEmpty()) body = "\uff08\u516c\u4f17\u53f7/\u5c0f\u7a0b\u5e8f\u6d88\u606f\uff09";
+            return (talker.isEmpty() ? "AppMessage" : talker) + " / "
+                    + (title == null || title.isEmpty() ? "message" : title) + ": " + body;
+        }
+        return extractBody(cv);
+    }
+
+    private static String friendlyWeChatText(String text) {
+        if (text == null || text.trim().isEmpty()) return null;
+        String s = text.replaceAll("[\\r\\n\\t]+", " ").trim();
+        if (s.startsWith("<") && s.contains(">")) {
+            s = s.replaceAll("<[^>]+>", " ")
+                    .replace("&nbsp;", " ")
+                    .replace("&amp;", "&")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replaceAll("\\s+", " ")
+                    .trim();
+        }
+        return s.length() > 1200 ? s.substring(0, 1200) : s;
+    }
+
+    private static String strValue(Object v) {
+        return v == null ? "" : String.valueOf(v);
+    }
+
+    private static int intValue(Object v) {
+        return v instanceof Number ? ((Number) v).intValue() : 0;
+    }
+
     private boolean isMsgTable(String s) {
         if (s == null) return false;
         final String low = s.toLowerCase();
@@ -591,10 +698,13 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                 if (last != null && (now - last) < DEDUP_WINDOW_MS) return;
                 recent.put(text, now);
             }
-            Context sc = systemContext();
+            Context sc = wechatContext;
+            if (sc == null) sc = systemContext();
             if (sc == null) return;
             Intent i = new Intent(PKG + ".XP_MSG");
             i.setPackage(PKG);
+            i.setComponent(new ComponentName(PKG, PKG + ".NotifyXposedReceiver"));
+            i.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
             i.putExtra("from", fromPkg);
             i.putExtra("body", text);
             i.putExtra("ts", System.currentTimeMillis());
