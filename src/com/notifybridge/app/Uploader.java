@@ -66,11 +66,6 @@ public final class Uploader {
                     WebDavClient client = new WebDavClient(url, user, pass);
                     // 记录目标服务器
                     LogStore.diag(ctx, "WebDAV 目标: " + client.getBaseUrl());
-                    // 远端目录（可在设置里手动指定，默认 notifybridge）
-                    String dir = Config.get(ctx, Config.KEY_WEBDAV_DIR, "notifybridge")
-                            .trim().replaceAll("^/+|/+$", "");
-                    if (dir.isEmpty()) dir = "notifybridge";
-
                     File[] files = DailyLog.files(ctx);
                     if (files.length == 0) {
                         ok = true;
@@ -78,12 +73,12 @@ public final class Uploader {
                     } else {
                         int up = 0, skipped = 0;
                         long totalBytes = 0;
-                        client.ensureDir(dir);
                         for (File f : files) {
                             if (up + skipped >= 5) break;  // 单次最多批量处理 5 个文件，保持节奏
                             String content = DailyLog.readFile(f);
                             if (totalBytes + content.length() > 1024 * 1024) break;  // 累积上限 ~1MB
-                            String remotePath = dir + "/" + f.getName();
+                            // 直接上传到 WebDAV 地址所指的目录（不再额外拼子目录）
+                            String remotePath = f.getName();
                             // 与云端一致性比对：一致跳过，不一致或云端不存在则上传
                             String remote = client.fetchText(remotePath);
                             if (remote != null && remote.equals(content)) {

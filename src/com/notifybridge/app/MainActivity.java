@@ -32,7 +32,7 @@ import java.util.List;
  */
 public class MainActivity extends Activity {
 
-    private EditText etUrl, etUser, etPass, etDir;
+    private EditText etUrl, etUser, etPass;
     private TextView tvStatus, tvCached;
     private Switch swSync;
 
@@ -616,7 +616,7 @@ public class MainActivity extends Activity {
         root.addView(section("WebDAV 配置"), mp);
 
         etUrl = new EditText(this);
-        etUrl.setHint("服务器地址（含协议，以 / 结尾）");
+        etUrl.setHint("WebDAV 服务器地址，即上传目标目录（以 / 结尾）");
         etUrl.setText(Config.get(this, Config.KEY_URL, ""));
         root.addView(etUrl, mp);
 
@@ -630,11 +630,6 @@ public class MainActivity extends Activity {
         etPass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         etPass.setText(Config.getPassword(this));
         root.addView(etPass, mp);
-
-        etDir = new EditText(this);
-        etDir.setHint("上传目录（远端路径，默认 notifybridge）");
-        etDir.setText(Config.get(this, Config.KEY_WEBDAV_DIR, "notifybridge"));
-        root.addView(etDir, mp);
 
         LinearLayout row1 = new LinearLayout(this);
         row1.setOrientation(LinearLayout.HORIZONTAL);
@@ -1954,11 +1949,6 @@ public class MainActivity extends Activity {
         Config.put(this, Config.KEY_URL, url);
         Config.put(this, Config.KEY_USER, user);
         Config.setPassword(this, pass);
-        if (etDir != null) {
-            String dir = etDir.getText().toString().trim();
-            if (dir.isEmpty()) dir = "notifybridge";
-            Config.put(this, Config.KEY_WEBDAV_DIR, dir);
-        }
         Config.putBool(this, Config.KEY_SERVER_VERIFIED, false);
         showToast("配置已保存", false);
     }

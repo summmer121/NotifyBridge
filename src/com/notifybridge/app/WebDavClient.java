@@ -83,7 +83,8 @@ public final class WebDavClient {
         } else {
             abs = basePath + urlPath;
         }
-        String path = abs;
+        // 请求行必须为 ASCII：中文等字符按 UTF-8 百分号编码，否则 getBytes(ISO_8859_1) 会替换成 '?'
+        String path = encodePath(abs);
         // 拼接请求行
         StringBuilder req = new StringBuilder();
         req.append(method).append(" ").append(path).append(" HTTP/1.1\r\n");
@@ -191,7 +192,7 @@ public final class WebDavClient {
             abs = basePath + relPath;
         }
         StringBuilder req = new StringBuilder();
-        req.append("GET ").append(abs).append(" HTTP/1.1\r\n");
+        req.append("GET ").append(encodePath(abs)).append(" HTTP/1.1\r\n");
         req.append("Host: ").append(host);
         if (!(port == 80 || port == 443)) req.append(":").append(port);
         req.append("\r\n");
@@ -305,4 +306,24 @@ public final class WebDavClient {
     }
 
     public String getBaseUrl() { return "http://" + host + (port != 80 ? ":" + port : "") + basePath; }
+
+    /** 把 URL 路径按 UTF-8 做百分号编码，保证请求行是纯 ASCII，中文路径不会再被替换成 '?'。 */
+    private static String encodePath(String path) {
+        if (path == null || path.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder(path.length());
+        final char[] HEX = "0123456789ABCDEF".toCharArray();
+        for (int i = 0; i < path.length(); i++) {
+            char ch = path.charAt(i);
+            if (ch <= 0x7F && (Character.isLetterOrDigit(ch) || ".-_~/:%".indexOf(ch) >= 0)) {
+                sb.append(ch);
+            } else {
+                byte[] bytes = String.valueOf(ch).getBytes(StandardCharsets.UTF_8);
+                for (byte b : bytes) {
+                    int v = b & 0xFF;
+                    sb.append('%').append(HEX[v >> 4]).append(HEX[v & 0x0F]);
+                }
+            }
+        }
+        return sb.toString();
+    }
 }
