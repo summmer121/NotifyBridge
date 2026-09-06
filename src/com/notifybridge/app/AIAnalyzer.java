@@ -16,9 +16,9 @@ import java.util.List;
  * 根据 Config.KEY_AI_MODE 选择：
  *   - "direct"：直接调 OpenAI 兼容 /v1/chat/completions（DeepSeek/OpenRouter/Ollama/本地等）
  *   - "relay" ：调服务器/Hermes 中转接口（POST JSON：{"platform":"html","data":"./file"}）
- *   - "local" / 未配置 / 失败 ：降级本地规则（AiAnalyzer）
+ *   - 未配置 / 失败 ：不降级本地规则，返回明确错误提示。
  *
- * 结构：analyze() 返回 Summary；本地规则作为兜底，保证任何情况下都有结果。
+ * 结构：analyze() / buildReport() 只接受真实 AI 接口返回的结果（direct / relay）。
  */
 public final class AIAnalyzer {
 
@@ -98,30 +98,32 @@ public final class AIAnalyzer {
         return false;
     }
 
-    /** 分析通知（优先真实 AI，失败或未配置降级本地规则）。返回可展示摘要 + 分类。 */
+    /** 分析通知（只使用真实 AI；失败或未配置返回错误提示，不降级本地规则）。返回可展示摘要 + 分类。 */
     public static AiAnalyzerCore.Summary analyze(Context ctx, List<String> lines) {
-        // 尝试真实 AI
         AIResult r = tryRealAi(ctx, lines);
+        AiAnalyzerCore.Summary s = AiAnalyzerCore.analyze(lines);   // 仅统计，不做摘要
         if (r.ok && r.text != null && !r.text.trim().isEmpty()) {
-            AiAnalyzerCore.Summary s = AiAnalyzerCore.analyze(lines);           // 先用本地算统计
-            s.digest = r.text.trim();                                   // 用 AI 摘要覆盖
-            return s;
+            s.digest = r.text.trim();
+        } else {
+            s.digest = "⚠️ 未配置或 AI 生成失败：" + (r.error == null ? "" : r.error)
+                    + "\n请先在 AI 配置中填写可用的接口后重新生成（本地摘要已关闭）。";
         }
-        // 降级本地规则
-        return AiAnalyzerCore.analyze(lines);
+        return s;
     }
 
-    /** 生成纪要（优先真实 AI，失败降级本地）。 */
+    /** 生成纪要（只使用真实 AI；失败或未配置返回错误提示，不降级本地规则）。 */
     public static String buildReport(Context ctx, String dateStr, List<String> lines) {
-        AiAnalyzerCore.Summary s = AiAnalyzerCore.analyze(lines);
-        // 尝试真实 AI 生成纪要
         AIResult r = tryRealAi(ctx, lines);
         if (r.ok && r.text != null && !r.text.trim().isEmpty()) {
             LogStore.diag(ctx, "✅ AI 纪要生成成功 (" + r.text.length() + " 字符)，保存 AI 内容");
             return r.text.trim();
         }
-        LogStore.diag(ctx, "⚠️ AI 未返回有效纪要 (ok=" + r.ok + ", err=" + r.error + ")，降级本地规则");
-        return AiAnalyzerCore.buildReport(dateStr, s) + "\n\n>（当前为本地规则生成；配置 AI 模型后可生成智能纪要）";
+        String err = r.error == null ? "" : r.error;
+        LogStore.diag(ctx, "❌ AI 纪要生成失败（本地摘要已关闭，不降级）：" + err);
+        return "# " + dateStr + " 通知沉淀\n\n"
+                + "> ⚠️ 未配置或 AI 接口调用失败，无法生成纪要（本地摘要已关闭）。\n"
+                + "> 错误：" + err + "\n\n"
+                + "请检查 AI 接口配置后点击「🤖 手动生成今日纪要」重试。";
     }
 
     private static AIResult tryRealAi(Context ctx, List<String> lines) {

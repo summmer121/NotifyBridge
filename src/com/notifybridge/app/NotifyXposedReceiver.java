@@ -32,7 +32,10 @@ public class NotifyXposedReceiver extends BroadcastReceiver {
 
         // 记诊断日志 + 统一缓存（与通知监听通道一致，供统计/纪要/上传）
         try {
-            LogStore.diag(context, "[Xposed] " + from + ": " + body);
+            String tag = "com.tencent.mm".equals(from) ? "[微信] " : ("[" + from + "] ");
+            LogStore.diag(context, tag + body);
+            // 面向用户的日更 Markdown 日志：时间戳 + 内容
+            DailyLog.append(context, ts, tag + body);
         } catch (Throwable ignored) {}
         try {
             NotificationCache.append(context, from, appLabel(context, from), body, body, ts);

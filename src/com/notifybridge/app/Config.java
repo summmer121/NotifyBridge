@@ -42,6 +42,8 @@ public final class Config {
     public static final String KEY_UPLOAD_INTERVAL_MS = "upload_interval_ms";
     public static final String KEY_UPLOAD_BATCH_SIZE = "upload_batch_size";
     public static final String KEY_SYNC_ENABLED = "sync_enabled";
+    public static final String KEY_WEBDAV_DIR = "webdav_dir";
+    public static final String KEY_DAILY_KEEP_DAYS = "daily_keep_days";
 
     // 其他状态
     public static final String KEY_LAST_SYNC = "last_sync_time";

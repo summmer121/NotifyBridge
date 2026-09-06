@@ -9,7 +9,8 @@ import java.io.File;
 import java.util.List;
 
 /**
- * 上传执行器：把本地缓存的通知 Markdown 批量上传到 WebDAV，成功后删除本地缓存。
+ * 上传执行器：把本地按天生成的 daily note Markdown 批量上传到 WebDAV。
+ * 上传成功不删除本地（本地文件由 7 天滚动清理），目标目录可在配置里指定。
  * 在后台线程执行，通过回调回到主线程通知 UI。
  */
 public final class Uploader {
@@ -65,31 +66,42 @@ public final class Uploader {
                     WebDavClient client = new WebDavClient(url, user, pass);
                     // 记录目标服务器
                     LogStore.diag(ctx, "WebDAV 目标: " + client.getBaseUrl());
+                    // 远端目录（可在设置里手动指定，默认 notifybridge）
+                    String dir = Config.get(ctx, Config.KEY_WEBDAV_DIR, "notifybridge")
+                            .trim().replaceAll("^/+|/+$", "");
+                    if (dir.isEmpty()) dir = "notifybridge";
 
-                    File[] files = NotificationCache.pendingFiles(ctx);
+                    File[] files = DailyLog.files(ctx);
                     if (files.length == 0) {
                         ok = true;
                         msg = "没有待上传数据";
                     } else {
-                        int up = 0;
+                        int up = 0, skipped = 0;
                         long totalBytes = 0;
+                        client.ensureDir(dir);
                         for (File f : files) {
-                            if (up >= 5) break;            // 单次最多批量传 5 个文件，保持节奏
-                            String content = NotificationCache.readFile(ctx, f);
+                            if (up + skipped >= 5) break;  // 单次最多批量处理 5 个文件，保持节奏
+                            String content = DailyLog.readFile(f);
                             if (totalBytes + content.length() > 1024 * 1024) break;  // 累积上限 ~1MB
+                            String remotePath = dir + "/" + f.getName();
+                            // 与云端一致性比对：一致跳过，不一致或云端不存在则上传
+                            String remote = client.fetchText(remotePath);
+                            if (remote != null && remote.equals(content)) {
+                                skipped++;
+                                LogStore.diag(ctx, "⏭️ 与云端一致，跳过: " + f.getName());
+                                continue;
+                            }
                             String brief = content.length() > 80 ? content.substring(0, 80) + "…" : content;
                             LogStore.diag(ctx, "开始上传: " + f.getName() + "（" + content.length() + "字节）：" + brief);
 
-                            client.ensureDir("notifybridge");
                             int before = content.length();
-                            client.uploadText("notifybridge/" + f.getName(), content);
-                            LogStore.diag(ctx, "✅ 上传成功: " + f.getName() + "（" + before + "字节 → " + client.getBaseUrl() + "notifybridge/" + f.getName() + "）");
-                            NotificationCache.deleteFile(ctx, f);
+                            client.uploadText(remotePath, content);
+                            LogStore.diag(ctx, "✅ 上传成功: " + f.getName() + "（" + before + "字节 → " + client.getBaseUrl() + remotePath + "）");
                             up++;
                             totalBytes += content.length();
                         }
                         ok = true;
-                        msg = "已上传 " + up + " 个文件";
+                        msg = "一致跳过 " + skipped + "，已上传 " + up + " 个文件";
                         Config.put(ctx, Config.KEY_LAST_SYNC, String.valueOf(System.currentTimeMillis()));
                     }
                 } catch (Exception e) {

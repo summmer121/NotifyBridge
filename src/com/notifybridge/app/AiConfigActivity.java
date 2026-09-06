@@ -56,16 +56,13 @@ public class AiConfigActivity extends Activity {
 
         rgMode = new RadioGroup(this);
         rgMode.setOrientation(LinearLayout.VERTICAL);
-        RadioButton rbLocal = new RadioButton(this);
-        rbLocal.setId(1); rbLocal.setText("本地规则（默认，不联网）");
         RadioButton rbDirect = new RadioButton(this);
         rbDirect.setId(2); rbDirect.setText("OpenAI 兼容直连（DeepSeek/OpenRouter/Ollama等）");
         RadioButton rbRelay = new RadioButton(this);
         rbRelay.setId(3); rbRelay.setText("服务器 / Hermes 中转");
-        rgMode.addView(rbLocal); rgMode.addView(rbDirect); rgMode.addView(rbRelay);
+        rgMode.addView(rbDirect); rgMode.addView(rbRelay);
         String curMode = Config.get(this, Config.KEY_AI_MODE, "direct");
-        rbLocal.setChecked("local".equals(curMode));
-        rbDirect.setChecked("direct".equals(curMode));
+        rbDirect.setChecked(!"relay".equals(curMode));
         rbRelay.setChecked("relay".equals(curMode));
         root.addView(rgMode, mp);
 
@@ -154,7 +151,7 @@ public class AiConfigActivity extends Activity {
 
     private void saveConfig() {
         int id = rgMode.getCheckedRadioButtonId();
-        String mode = id == 2 ? "direct" : (id == 3 ? "relay" : "local");
+        String mode = id == 3 ? "relay" : "direct";
         Config.put(this, Config.KEY_AI_MODE, mode);
         Config.put(this, Config.KEY_AI_BASE_URL, etBase.getText().toString().trim());
         Config.setAiKey(this, etKey.getText().toString().trim());
@@ -176,9 +173,6 @@ public class AiConfigActivity extends Activity {
             AIAnalyzer.AIResult r = AIAnalyzer.testConnection(this);
             LogStore.diag(this, r.ok ? "✅ 中转测试成功" : "❌ 中转测试失败: " + r.error);
             showToast(r.ok ? "✅ 中转连接成功" : "❌ " + r.error, !r.ok);
-        } else {
-            LogStore.diag(this, "本地规则模式，无需网络");
-            showToast("本地规则模式，无需网络配置", false);
         }
     }
 

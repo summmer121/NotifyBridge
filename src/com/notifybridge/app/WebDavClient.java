@@ -179,6 +179,90 @@ public final class WebDavClient {
         }
     }
 
+    /**
+     * 下载远端文本内容（GET）。资源不存在(404)返回 null，其他错误抛异常。
+     * 用于上传前与本地 daily note 做一致性比对。
+     */
+    public String fetchText(String relPath) throws IOException {
+        String abs;
+        if (relPath.startsWith("/")) {
+            abs = relPath;
+        } else {
+            abs = basePath + relPath;
+        }
+        StringBuilder req = new StringBuilder();
+        req.append("GET ").append(abs).append(" HTTP/1.1\r\n");
+        req.append("Host: ").append(host);
+        if (!(port == 80 || port == 443)) req.append(":").append(port);
+        req.append("\r\n");
+        req.append("Authorization: ").append(authHeader).append("\r\n");
+        req.append("User-Agent: ").append(userAgent).append("\r\n");
+        req.append("Accept: */*\r\n");
+        req.append("Connection: close\r\n");
+        req.append("\r\n");
+
+        Socket s = connect();
+        try {
+            OutputStream os = s.getOutputStream();
+            os.write(req.toString().getBytes(StandardCharsets.ISO_8859_1));
+            os.flush();
+
+            InputStream is = s.getInputStream();
+            ByteArrayOutputStream head = new ByteArrayOutputStream();
+            // 读响应头直到 \r\n\r\n
+            boolean headerDone = false;
+            while (!headerDone) {
+                int b = is.read();
+                if (b == -1) {
+                    if (head.size() == 0) throw new IOException("连接被关闭，无响应");
+                    break;
+                }
+                head.write(b);
+                byte[] h = head.toByteArray();
+                int n = h.length;
+                if (n >= 4 && h[n-4]=='\r' && h[n-3]=='\n' && h[n-2]=='\r' && h[n-1]=='\n') {
+                    headerDone = true;
+                }
+                if (n > 65536) throw new IOException("响应头过大");
+            }
+
+            String headerStr = head.toString("ISO-8859-1");
+            int sp1 = headerStr.indexOf(' ');
+            int sp2 = headerStr.indexOf(' ', sp1 + 1);
+            int code;
+            try {
+                code = Integer.parseInt(headerStr.substring(sp1 + 1, sp2));
+            } catch (Exception e) {
+                throw new IOException("无法解析 HTTP 状态码: " +
+                        headerStr.substring(0, Math.min(60, headerStr.length())));
+            }
+            if (code == 404) return null;
+            if (code < 200 || code >= 300) {
+                throw new IOException("下载失败 HTTP " + code);
+            }
+
+            ByteArrayOutputStream body = new ByteArrayOutputStream();
+            // 跳过空行与已读缓冲中的 body
+            byte[] all = head.toByteArray();
+            int bodyStart = -1;
+            for (int i = 0; i + 3 < all.length; i++) {
+                if (all[i]=='\r' && all[i+1]=='\n' && all[i+2]=='\r' && all[i+3]=='\n') {
+                    bodyStart = i + 4;
+                    break;
+                }
+            }
+            if (bodyStart >= 0 && bodyStart < all.length) {
+                body.write(all, bodyStart, all.length - bodyStart);
+            }
+            byte[] buf = new byte[4096];
+            int rd;
+            while ((rd = is.read(buf)) != -1) body.write(buf, 0, rd);
+            return body.toString("UTF-8");
+        } finally {
+            try { s.close(); } catch (IOException ignore) {}
+        }
+    }
+
     /** 递归创建目录。405/409=已存在视为成功。 */
     public void ensureDir(String path) throws IOException {
         if (path == null) return;

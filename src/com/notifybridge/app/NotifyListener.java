@@ -80,6 +80,10 @@ public class NotifyListener extends NotificationListenerService {
             // 有正文才写缓存（避免把空通知上传）
             if (!title.isEmpty() || !body.isEmpty()) {
                 NotificationCache.append(ctx, pkg, appName, merged, body, postTime);
+                // 面向用户的日更 Markdown 日志
+                String readable = (merged.isEmpty() ? "" : merged) +
+                        (merged.isEmpty() || body.isEmpty() ? "" : " ") + body;
+                DailyLog.append(ctx, postTime, "[" + appName + "] " + readable.trim());
                 // 累加当日统计（图表看板数据源）
                 String cat = classify(body + title);
                 StatsStore.record(ctx, postTime, pkg, cat);

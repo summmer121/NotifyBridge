@@ -30,7 +30,7 @@ import java.util.List;
  */
 public class MainActivity extends Activity {
 
-    private EditText etUrl, etUser, etPass;
+    private EditText etUrl, etUser, etPass, etDir;
     private TextView tvStatus, tvCached;
     private Switch swSync;
 
@@ -647,6 +647,11 @@ public class MainActivity extends Activity {
         etPass.setText(Config.getPassword(this));
         root.addView(etPass, mp);
 
+        etDir = new EditText(this);
+        etDir.setHint("上传目录（远端路径，默认 notifybridge）");
+        etDir.setText(Config.get(this, Config.KEY_WEBDAV_DIR, "notifybridge"));
+        root.addView(etDir, mp);
+
         LinearLayout row1 = new LinearLayout(this);
         row1.setOrientation(LinearLayout.HORIZONTAL);
         Button btnTest = new Button(this);
@@ -919,7 +924,7 @@ public class MainActivity extends Activity {
             long ts = ReportStore.getReportTs(this, dayKey);
             if (ts <= 0) ts = System.currentTimeMillis();
             String timeStr = fmtTime(ts);
-            String suffix = (real ? "\n【AI 智能模式】" : "\n【本地规则模式】");
+            String suffix = (real ? "\n【AI 智能模式】" : "\n【未配置 AI】");
             tvAiDigest.setText(android.text.Html.fromHtml(renderMarkdown(cached) + "<br/><small style=\"color:#90A4AE\">"
                     + suffix + "</small>"));
             // 生成时间明确显示到 时:分:秒，放在摘要卡标题下
@@ -931,7 +936,8 @@ public class MainActivity extends Activity {
         // 用本地规则做概览统计（轻量，不联网）
         List<String> lines = LogStore.read(this, 300);
         AiAnalyzerCore.Summary s = AiAnalyzerCore.analyze(lines);
-        tvAiCount.setText("今日 " + s.totalNotices + " 条通知 · " + (AIAnalyzer.isDirect(this) ? "AI直连" : "中转/本地"));
+        String modeTxt = real ? (AIAnalyzer.isDirect(this) ? "AI直连" : "中转") : "未配置 AI";
+        tvAiCount.setText("今日 " + s.totalNotices + " 条通知 · " + modeTxt);
         setStat(tvAiWork, "📊 " + s.workCount + " 工作");
         setStat(tvAiTodo, "✅ " + s.todoCount + " 待办");
         setStat(tvAiUrgent, "🔴 " + s.urgentCount + " 紧急");
@@ -1487,11 +1493,9 @@ public class MainActivity extends Activity {
         rbD.setId(101); rbD.setText("直连");
         android.widget.RadioButton rbR = new android.widget.RadioButton(this);
         rbR.setId(102); rbR.setText("中转");
-        android.widget.RadioButton rbL = new android.widget.RadioButton(this);
-        rbL.setId(103); rbL.setText("本地");
-        aiModeGroup.addView(rbD); aiModeGroup.addView(rbR); aiModeGroup.addView(rbL);
+        aiModeGroup.addView(rbD); aiModeGroup.addView(rbR);
         String md = Config.get(this, Config.KEY_AI_MODE, "direct");
-        rbD.setChecked("direct".equals(md)); rbR.setChecked("relay".equals(md)); rbL.setChecked("local".equals(md));
+        rbD.setChecked(!"relay".equals(md)); rbR.setChecked("relay".equals(md));
         p.addView(aiModeGroup, mp);
 
         String pb = Config.get(this, Config.KEY_AI_BASE_URL, ""); pb = pb.isEmpty() ? AIAnalyzer.PRESET_BASE_URL : pb;
@@ -1711,15 +1715,15 @@ public class MainActivity extends Activity {
     /** 当前 AI 模式后缀（用于入口按钮显示）。 */
     private String aiModeSuffix() {
         String mode = Config.get(this, Config.KEY_AI_MODE, "direct");
-        if ("direct".equals(mode)) return "（直连·已预置）";
         if ("relay".equals(mode)) return "（中转）";
-        return "（本地规则）";
+        if ("direct".equals(mode)) return "（AI 直连）";
+        return "（未配置 AI）";
     }
 
     /** 保存设置页内嵌的 AI 配置并测试连接。 */
     private void saveAiConfigFromSettings() {
         int id = aiModeGroup.getCheckedRadioButtonId();
-        String mode = id == 102 ? "relay" : (id == 103 ? "local" : "direct");
+        String mode = id == 102 ? "relay" : "direct";
         Config.put(this, Config.KEY_AI_MODE, mode);
         Config.put(this, Config.KEY_AI_BASE_URL, aiBase.getText().toString().trim());
         Config.setAiKey(this, aiKey.getText().toString().trim());
@@ -1728,13 +1732,8 @@ public class MainActivity extends Activity {
         if (aiPrompt != null) AIAnalyzer.savePrompt(this, aiPrompt.getText().toString());
         Config.putBool(this, Config.KEY_AI_ENABLED, true);
         showToast("AI 配置已保存，正在测试连接...", false);
-        final String m = mode;
         new Thread(new Runnable() {
             @Override public void run() {
-                if ("local".equals(m)) {
-                    runOnUiThread(new Runnable() { @Override public void run() { showToast("本地规则模式，无需网络", false); } });
-                    return;
-                }
                 final AIAnalyzer.AIResult r = AIAnalyzer.testConnection(MainActivity.this);
                 LogStore.diag(MainActivity.this, r.ok ? "✅ AI 连接成功" : "❌ AI 连接失败: " + r.error);
                 runOnUiThread(new Runnable() {
@@ -1881,6 +1880,11 @@ public class MainActivity extends Activity {
         Config.put(this, Config.KEY_URL, url);
         Config.put(this, Config.KEY_USER, user);
         Config.setPassword(this, pass);
+        if (etDir != null) {
+            String dir = etDir.getText().toString().trim();
+            if (dir.isEmpty()) dir = "notifybridge";
+            Config.put(this, Config.KEY_WEBDAV_DIR, dir);
+        }
         Config.putBool(this, Config.KEY_SERVER_VERIFIED, false);
         showToast("配置已保存", false);
     }
