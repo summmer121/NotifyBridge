@@ -791,21 +791,8 @@ public class MainActivity extends Activity {
         scroll.addView(root);
         LinearLayout.LayoutParams mp = matcher();
 
-        // 顶部渐变标题
-        TextView aiTitle = new TextView(this);
-        aiTitle.setText("🤖 AI 今日简报");
-        aiTitle.setTextSize(20);
-        aiTitle.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        aiTitle.setTextColor(Color.WHITE);
-        aiTitle.setGravity(Gravity.CENTER);
-        aiTitle.setGravity(Gravity.CENTER);
-        aiTitle.setPadding(dp(16), dp(24), dp(16), dp(24));
-        android.graphics.drawable.GradientDrawable aiGrad = new android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{ThemeManager.color(this, ThemeManager.GRAD_S), ThemeManager.color(this, ThemeManager.GRAD_E)});
-        aiGrad.setCornerRadius(dp(14));
-        aiTitle.setBackground(aiGrad);
-        root.addView(aiTitle, mp);
+        // 顶部标题（简洁，不铺满渐变背景）
+        root.addView(UiKit.sectionTitle(this, "🤖 AI 今日简报"), mp);
 
         // 手动生成 + 查看历史：一行两个按钮（左/右）
         LinearLayout actionRow = new LinearLayout(this);
