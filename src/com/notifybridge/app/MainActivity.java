@@ -42,7 +42,6 @@ public class MainActivity extends Activity {
     private android.widget.FrameLayout contentContainer;
     private LinearLayout bottomBar;
     private TextView[] bottomTabs = new TextView[4];
-    private TextView tvBarSub;
     private android.view.View[] tabIndicators = new android.view.View[4];
     // AI 页面引用
     private TextView tvAiCount, tvAiDigest, tvAiWork, tvAiTodo, tvAiUrgent, tvAiGenTime;
@@ -171,31 +170,6 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
-
-        // 顶部品牌栏：渐变底 + 标题 + 小副标题
-        LinearLayout topBar = new LinearLayout(this);
-        topBar.setOrientation(LinearLayout.VERTICAL);
-        topBar.setPadding(dp(18), dp(14), dp(18), dp(14));
-        android.graphics.drawable.GradientDrawable topGrad = new android.graphics.drawable.GradientDrawable(
-                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{ThemeManager.color(this, ThemeManager.GRAD_S),
-                        ThemeManager.color(this, ThemeManager.GRAD_E)});
-        topGrad.setCornerRadii(new float[]{0, 0, dp(20), dp(20), 0, 0, dp(20), dp(20)});
-        topBar.setBackground(topGrad);
-        TextView tvBarTitle = new TextView(this);
-        tvBarTitle.setText("NotifyBridge");
-        tvBarTitle.setTextSize(21);
-        tvBarTitle.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        tvBarTitle.setTextColor(Color.WHITE);
-        tvBarSub = new TextView(this);
-        tvBarSub.setText("通知察觉 · 每日纪要 · AI 智能助手");
-        tvBarSub.setTextSize(12);
-        tvBarSub.setTextColor(0xB3FFFFFF);
-        tvBarSub.setPadding(0, dp(2), 0, 0);
-        topBar.addView(tvBarTitle);
-        topBar.addView(tvBarSub);
-        root.addView(topBar, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // 内容容器（承载 4 个主页面）
         contentContainer = new android.widget.FrameLayout(this);
