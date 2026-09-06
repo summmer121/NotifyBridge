@@ -76,7 +76,7 @@ public class FilterActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(16));
-        root.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
+        root.setBackgroundColor(ThemeManager.BG);
         topScroll.addView(root);
         LinearLayout.LayoutParams mp = m();
         LinearLayout.LayoutParams fill = new LinearLayout.LayoutParams(
@@ -85,7 +85,7 @@ public class FilterActivity extends Activity {
         // 外层根：垂直填满屏幕
         LinearLayout pageRoot = new LinearLayout(this);
         pageRoot.setOrientation(LinearLayout.VERTICAL);
-        pageRoot.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
+        pageRoot.setBackgroundColor(ThemeManager.BG);
         // 应用列表是主角：占满剩余高度；顶部设置区用固定紧凑高度（内部可滚），
         // 避免 weight 与 WRAP 混算导致的高层错乱/遮挡
         LinearLayout.LayoutParams topLp = new LinearLayout.LayoutParams(
@@ -130,7 +130,7 @@ public class FilterActivity extends Activity {
 
         android.widget.ScrollView appScroll = new android.widget.ScrollView(this);
         appScroll.setSmoothScrollingEnabled(true);
-        appScroll.setBackgroundColor(ThemeManager.color(this, ThemeManager.CARD));
+        appScroll.setBackgroundColor(ThemeManager.GLASS);
         appList = new LinearLayout(this);
         appList.setOrientation(LinearLayout.VERTICAL);
         appList.setPadding(dp(4), dp(4), dp(4), dp(8));
@@ -210,7 +210,7 @@ public class FilterActivity extends Activity {
         pageRoot.addView(topScroll, topLp);
 
         // 搜索框固定行：置于顶部设置区与可滚动应用列表之间，不随应用列表滚动
-        etSearch.setBackgroundColor(ThemeManager.color(this, ThemeManager.CARD));
+        etSearch.setBackgroundColor(ThemeManager.GLASS);
         LinearLayout.LayoutParams searchLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         searchLp.setMargins(dp(8), dp(4), dp(8), dp(2));

@@ -56,7 +56,8 @@ public class MainActivity extends Activity {
     private EditText aiBase, aiKey, aiModel, aiRelay, aiPrompt;
     private android.widget.RadioGroup aiModeGroup;
     // 首页信息统计
-    private TextView statToday, statNotice, statReport, statCumNotice, statCumDays, statExtra;
+   private TextView statToday, statReport, statCumNotice, statExtra;
+    private TextView tvLastSync, statWork, statTodo, statUrgent;
     private Charts.BarChartView chart7d;
     private Charts.RingChartView chartCat;
     private TextView catLegend;
@@ -72,7 +73,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setupSystemBars();
-        LinearLayout root = buildUi();
+        android.view.View root = buildUi();
         setContentView(root);
         // 真·edge-to-edge：内容延伸到状态栏+手势条下，并按系统栏 inset 给根部局加 padding
         applyEdgeToEdge(root);
@@ -95,7 +96,7 @@ public class MainActivity extends Activity {
 
             // 状态栏 / 导航栏配色（深色图标）
             int flags = 0;
-            int bg = ThemeManager.color(this, ThemeManager.BG);
+            int bg = ThemeManager.BG;
             if (sdk >= 23) flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
             if (sdk >= 26) flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
             try { w.setStatusBarColor(bg); } catch (Throwable ignore) {}
@@ -166,18 +167,18 @@ public class MainActivity extends Activity {
 
     // ============ UI 构建 ============
 
-    private LinearLayout buildUi() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
+    private android.view.View buildUi() {
+        android.widget.FrameLayout root = new android.widget.FrameLayout(this);
+        root.setBackgroundColor(ThemeManager.BG);
 
         // 内容容器（承载 4 个主页面）
         contentContainer = new android.widget.FrameLayout(this);
-        root.addView(contentContainer, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+        root.addView(contentContainer, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
 
         // 构建四个页面
-        homePageView = buildHomePage();   // 首页（信息统计 + 配置）
+        homePageView = buildHomePage();   // 首页（信息统计 + 数据看板）
         logPage = buildLogPage();          // 日志页（第2个Tab）
         aiPage = buildAiPage();
         settingsPage = buildSettingsPage();
@@ -187,39 +188,38 @@ public class MainActivity extends Activity {
         contentContainer.addView(aiPage, matcher());
         contentContainer.addView(settingsPage, matcher());
 
-        // 底部 4-Tab 导航
+        // 底部 4-Tab 浮起毛玻璃导航：悬浮于页面内容之上，圆角胶囊 + 细白描边
         bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
-        bottomBar.setBackgroundColor(ThemeManager.color(this, ThemeManager.CARD));
-        bottomBar.setElevation(dp(8));
+        bottomBar.setPadding(dp(6), dp(6), dp(6), dp(6));
+        android.graphics.drawable.GradientDrawable barBg = new android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x24303440, 0xC9121218});
+        barBg.setCornerRadius(dp(26));
+        barBg.setStroke(1, 0x22FFFFFF);
+        bottomBar.setBackground(barBg);
+        try { bottomBar.setElevation(dp(8)); } catch (Throwable ignored) {}
+        android.widget.FrameLayout.LayoutParams barLp = new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.BOTTOM);
+        barLp.setMargins(dp(14), 0, dp(14), dp(10));
+        root.addView(bottomBar, barLp);
+
         String[] labels = {"🏠 首页", "📋 日志", "🤖 AI", "👤 我的"};
         tabIndicators = new android.view.View[4];
         for (int i = 0; i < 4; i++) {
             final int idx = i;
-            // 每个 Tab 用 FrameLayout 容器：顶部指示条 + 文字，实现「选中上滑指示条」
-            android.widget.FrameLayout tabCell = new android.widget.FrameLayout(this);
             bottomTabs[i] = new TextView(this);
             bottomTabs[i].setText(labels[i]);
-            bottomTabs[i].setTextSize(13);
+            bottomTabs[i].setTextSize(12);
             bottomTabs[i].setGravity(Gravity.CENTER);
-            bottomTabs[i].setPadding(0, dp(14), 0, dp(12));
+            bottomTabs[i].setPadding(0, dp(10), 0, dp(10));
             bottomTabs[i].setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { switchMainTab(idx); }
             });
-            tabCell.addView(bottomTabs[i], new android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
-            // 顶部指示条：默认透明，选中时主色
-            android.view.View ind = new android.view.View(this);
-            ind.setBackgroundColor(ThemeManager.color(this, ThemeManager.TAB_ON));
-            ind.setVisibility(View.INVISIBLE);
-            tabIndicators[i] = ind;
-            tabCell.addView(ind, new android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT, dp(3),
-                    android.view.Gravity.TOP));
-            bottomBar.addView(tabCell, new LinearLayout.LayoutParams(0, -2, 1f));
+            bottomBar.addView(bottomTabs[i], new LinearLayout.LayoutParams(0, -2, 1f));
         }
-        root.addView(bottomBar);
 
         return root;
     }
@@ -234,9 +234,8 @@ public class MainActivity extends Activity {
         if (idx == 1) refreshLog();
         if (idx == 0) refreshHomeStats();   // 回首页刷新统计
         // 底部 tab 高亮：顶部指示条 + 圆角选中胶囊 + 加粗
-        int on = ThemeManager.color(this, ThemeManager.TAB_ON);
-        int off = ThemeManager.color(this, ThemeManager.SECONDARY);
-        int card = ThemeManager.color(this, ThemeManager.CARD);
+        int on = ThemeManager.color(this, ThemeManager.IDX_TAB_ON);
+        int off = ThemeManager.SECONDARY;
         for (int i = 0; i < bottomTabs.length; i++) {
             if (bottomTabs[i] != null) {
                 boolean sel = (i == idx);
@@ -244,8 +243,11 @@ public class MainActivity extends Activity {
                 bottomTabs[i].setTypeface(null, sel ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
                 // 选中：圆角主色淡底胶囊；未选中：透明
                 if (sel) {
-                    int pill = (0x20FFFFFF) & (on); // 主色调透明胶囊底，浅色主题下柔和
-                    bottomTabs[i].setBackground(ThemeManager.rounded(pill, 0, 12, 0));
+                    android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+                    g.setColor(0x1A2A2F3E);
+                    g.setCornerRadius(dp(14));
+                    g.setStroke(1, 0x268BC7FF);
+                    bottomTabs[i].setBackground(g);
                 } else {
                     bottomTabs[i].setBackgroundColor(Color.TRANSPARENT);
                 }
@@ -262,136 +264,138 @@ public class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         LinearLayout wrap = new LinearLayout(this);
         wrap.setOrientation(LinearLayout.VERTICAL);
-        wrap.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
-        wrap.setPadding(dp(12), dp(10), dp(12), dp(12));
+        wrap.setBackgroundColor(ThemeManager.BG);
+        wrap.setPadding(dp(14), dp(10), dp(14), dp(12));
         scroll.addView(wrap);
         LinearLayout.LayoutParams mp = matcher();
 
-        // ① 信息统计区
+        // 页面标题 + 右上角上次同步时间
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
         TextView statTitle = new TextView(this);
-        statTitle.setText("📊 信息总览");
-        statTitle.setTextSize(17);
+        statTitle.setText("🏠 信息总览");
+        statTitle.setTextSize(22);
         statTitle.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        statTitle.setTextColor(Color.parseColor("#37474F"));
-        wrap.addView(statTitle, mp);
+        statTitle.setTextColor(ThemeManager.TEXT);
+        head.addView(statTitle, new LinearLayout.LayoutParams(0, -2, 1f));
+        tvLastSync = new TextView(this);
+        tvLastSync.setTextSize(11);
+        tvLastSync.setTextColor(ThemeManager.SECONDARY);
+        tvLastSync.setGravity(Gravity.END);
+        head.addView(tvLastSync, new LinearLayout.LayoutParams(-2, -2));
+        wrap.addView(head, mp);
 
+        // ① 信息总览毛玻璃卡片
         LinearLayout statCard = new LinearLayout(this);
         statCard.setOrientation(LinearLayout.HORIZONTAL);
         ThemeManager.styleCard(statCard, this, ThemeManager.CARD_RADIUS);
-        statCard.setPadding(dp(4), dp(6), dp(4), dp(6));
+        statCard.setPadding(dp(6), dp(10), dp(6), dp(10));
         statToday = statCellHome(statCard, "📈", "今天通知");
         statReport = statCellHome(statCard, "📝", "今日纪要");
+        statCumNotice = statCellHome(statCard, "🗂️", "累计通知");
         wrap.addView(statCard, mp);
 
         LinearLayout statCard2 = new LinearLayout(this);
         statCard2.setOrientation(LinearLayout.HORIZONTAL);
         ThemeManager.styleCard(statCard2, this, ThemeManager.CARD_RADIUS);
-        statCard2.setPadding(dp(4), dp(6), dp(4), dp(6));
-        statCumNotice = statCellHome(statCard2, "🗂️", "累计通知");
-        statCumDays = statCellHome(statCard2, "📅", "纪要天数");
+        statCard2.setPadding(dp(6), dp(10), dp(6), dp(10));
+        statWork = statCellHome(statCard2, "💼", "工作");
+        statTodo = statCellHome(statCard2, "✅", "待办");
+        statUrgent = statCellHome(statCard2, "🔴", "紧急");
         wrap.addView(statCard2, mp);
 
         statExtra = new TextView(this);
-        statExtra.setTextSize(13);
-        statExtra.setTextColor(Color.parseColor("#37474F"));
+        statExtra.setTextSize(12);
+        statExtra.setTextColor(ThemeManager.SECONDARY);
         statExtra.setPadding(dp(4), dp(8), dp(4), dp(8));
         wrap.addView(statExtra, mp);
 
         // ---- 📊 数据看板 ----
         TextView dashTitle = new TextView(this);
         dashTitle.setText("📊 数据看板");
-        dashTitle.setTextSize(17);
+        dashTitle.setTextSize(18);
         dashTitle.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        dashTitle.setTextColor(Color.parseColor("#37474F"));
-        dashTitle.setPadding(0, dp(14), 0, dp(6));
+        dashTitle.setTextColor(ThemeManager.TEXT);
+        dashTitle.setPadding(0, dp(14), 0, dp(8));
         wrap.addView(dashTitle, mp);
 
-        // 近7天趋势
-        TextView lbl7 = new TextView(this);
-        lbl7.setText("近7天通知趋势");
-        lbl7.setTextSize(14);
-        lbl7.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lbl7.setTextColor(ThemeManager.color(this, ThemeManager.TAB_ON));
-        lbl7.setPadding(dp(4), dp(4), dp(4), dp(4));
-        wrap.addView(lbl7, mp);
+        // 近7天趋势（玻璃卡片）
+        LinearLayout card7 = new LinearLayout(this);
+        card7.setOrientation(LinearLayout.VERTICAL);
+        ThemeManager.styleCard(card7, this, ThemeManager.CARD_RADIUS);
+        card7.setPadding(dp(12), dp(8), dp(12), dp(8));
+        card7.addView(subTitle("近 7 天通知趋势"), mp);
         chart7d = new Charts.BarChartView(this, new String[7][2]);
-        chart7d.setMinimumHeight(dp(150));
-        ThemeManager.styleCard(chart7d, this, ThemeManager.CARD_RADIUS);
-        chart7d.setPadding(dp(6), dp(6), dp(6), dp(6));
-        wrap.addView(chart7d, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(160)));
+        chart7d.setMinimumHeight(dp(140));
+        card7.addView(chart7d, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(150)));
+        wrap.addView(card7, mp);
 
-        // 今日分类占比（环形图居中 + 下方居中的彩色图例）
-        TextView lblCat = new TextView(this);
-        lblCat.setText("今日通知分类占比");
-        lblCat.setTextSize(14);
-        lblCat.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lblCat.setTextColor(ThemeManager.color(this, ThemeManager.TAB_ON));
-        lblCat.setPadding(dp(4), dp(14), dp(4), dp(4));
-        wrap.addView(lblCat, mp);
-
+        // 今日分类占比（玻璃卡片）
+        LinearLayout cardCat = new LinearLayout(this);
+        cardCat.setOrientation(LinearLayout.VERTICAL);
+        ThemeManager.styleCard(cardCat, this, ThemeManager.CARD_RADIUS);
+        cardCat.setPadding(dp(12), dp(8), dp(12), dp(8));
+        cardCat.addView(subTitle("今日通知分类占比"), mp);
         android.widget.FrameLayout catBox = new android.widget.FrameLayout(this);
-        ThemeManager.styleCard(catBox, this, ThemeManager.CARD_RADIUS);
-        catBox.setPadding(dp(6), dp(4), dp(6), dp(4));
         chartCat = new Charts.RingChartView(this, new String[5][3]);
         chartCat.setMinimumHeight(dp(140));
-        android.widget.FrameLayout.LayoutParams clp = new android.widget.FrameLayout.LayoutParams(dp(140), dp(140));
+        android.widget.FrameLayout.LayoutParams clp = new android.widget.FrameLayout.LayoutParams(dp(150), dp(150));
         clp.gravity = android.view.Gravity.CENTER;
         catBox.addView(chartCat, clp);
-        wrap.addView(catBox, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(140)));
-
-        // 分类图例（居中：彩色圆点 + 名称 + 数量）
+        cardCat.addView(catBox, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(150)));
         catLegend = new TextView(this);
-        catLegend.setTextSize(12);
-        catLegend.setTextColor(Color.parseColor("#37474F"));
+        catLegend.setTextSize(11);
+        catLegend.setTextColor(ThemeManager.SECONDARY);
         catLegend.setGravity(Gravity.CENTER);
-        catLegend.setPadding(dp(4), dp(6), dp(4), dp(2));
-        wrap.addView(catLegend, mp);
+        catLegend.setPadding(dp(2), dp(4), dp(2), dp(2));
+        cardCat.addView(catLegend, mp);
+        wrap.addView(cardCat, mp);
 
         // 今日 vs 昨日
         LinearLayout vsRow = new LinearLayout(this);
         vsRow.setOrientation(LinearLayout.HORIZONTAL);
-        vsRow.setBackgroundColor(ThemeManager.color(this, ThemeManager.CARD));
+        ThemeManager.styleCard(vsRow, this, ThemeManager.CARD_RADIUS);
         vsToday = vsCell(vsRow, "今日");
         vsYesterday = vsCell(vsRow, "昨日");
         wrap.addView(vsRow, mp);
 
         // App TOP
-        TextView lblTop = new TextView(this);
-        lblTop.setText("通知来源 TOP5");
-        lblTop.setTextSize(14);
-        lblTop.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lblTop.setTextColor(ThemeManager.color(this, ThemeManager.TAB_ON));
-        lblTop.setPadding(dp(4), dp(14), dp(4), dp(4));
-        wrap.addView(lblTop, mp);
+        LinearLayout cardTop = new LinearLayout(this);
+        cardTop.setOrientation(LinearLayout.VERTICAL);
+        ThemeManager.styleCard(cardTop, this, ThemeManager.CARD_RADIUS);
+        cardTop.setPadding(dp(12), dp(8), dp(12), dp(8));
+        cardTop.addView(subTitle("通知来源 TOP5"), mp);
         appTopList = new LinearLayout(this);
         appTopList.setOrientation(LinearLayout.VERTICAL);
-        appTopList.setBackgroundColor(ThemeManager.color(this, ThemeManager.CARD));
-        wrap.addView(appTopList, mp);
+        cardTop.addView(appTopList, mp);
+        wrap.addView(cardTop, mp);
 
         // 小时分布
-        TextView lblHour = new TextView(this);
-        lblHour.setText("按小时分布");
-        lblHour.setTextSize(14);
-        lblHour.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lblHour.setTextColor(ThemeManager.color(this, ThemeManager.TAB_ON));
-        lblHour.setPadding(dp(4), dp(14), dp(4), dp(4));
-        wrap.addView(lblHour, mp);
+        LinearLayout cardHour = new LinearLayout(this);
+        cardHour.setOrientation(LinearLayout.VERTICAL);
+        ThemeManager.styleCard(cardHour, this, ThemeManager.CARD_RADIUS);
+        cardHour.setPadding(dp(12), dp(8), dp(12), dp(8));
+        cardHour.addView(subTitle("按小时分布"), mp);
         chartHour = new Charts.BarChartView(this, new String[24][2]);
         chartHour.setMinimumHeight(dp(90));
-        chartHour.setBackgroundColor(ThemeManager.color(this, ThemeManager.CARD));
-        wrap.addView(chartHour, new LinearLayout.LayoutParams(
+        cardHour.addView(chartHour, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(120)));
+        wrap.addView(cardHour, mp);
 
-        // 配置已移至「👤我的」页二级菜单
-        TextView cfgTip = new TextView(this);
-        cfgTip.setText("⚙️ 配置（WebDAV/AI/过滤器等）已移至「👤 我的」页设置中心");
-        cfgTip.setTextSize(12);
-        cfgTip.setTextColor(ThemeManager.color(this, ThemeManager.SECONDARY));
-        cfgTip.setGravity(Gravity.CENTER);
-        cfgTip.setPadding(dp(4), dp(14), dp(4), dp(6));
-        wrap.addView(cfgTip, mp);
+        // 生成/重新生成纪要主按钮
+        LinearLayout.LayoutParams lpGen = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpGen.setMargins(0, dp(14), 0, dp(6));
+        Button btnGen = UiKit.primary(this, "✨ 生成 / 重新生成纪要");
+        btnGen.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                generateReport(ReportStore.dateKeyNow(), true);
+            }
+        });
+        wrap.addView(btnGen, lpGen);
 
         fillDashboard();   // 构建即用真实统计数据填充图表
         return scroll;
@@ -402,22 +406,28 @@ public class MainActivity extends Activity {
     private View buildLogPage() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(12), dp(10), dp(12), dp(8));
-        root.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
+        root.setPadding(dp(14), dp(10), dp(14), dp(8));
+        root.setBackgroundColor(ThemeManager.BG);
         LinearLayout.LayoutParams mp = matcher();
 
-        TextView title = UiKit.sectionTitle(this, "📄 通知日志");
+        TextView title = UiKit.sectionTitle(this, "📋 通知日志");
         root.addView(title, mp);
 
         tvLogHint = new TextView(this);
         tvLogHint.setTextSize(12);
-        tvLogHint.setTextColor(ThemeManager.color(this, ThemeManager.SECONDARY));
-        tvLogHint.setPadding(dp(4), 0, dp(4), dp(10));
+        tvLogHint.setTextColor(ThemeManager.ICE);
+        tvLogHint.setGravity(Gravity.CENTER_VERTICAL);
+        tvLogHint.setPadding(dp(12), dp(5), dp(12), dp(5));
+        tvLogHint.setBackground(UiKit.glassBg(this, 14));
+        tvLogHint.setCompoundDrawablePadding(dp(6));
         root.addView(tvLogHint, mp);
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams lpRowM = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpRowM.setMargins(0, dp(12), 0, 0);
         Button btnRefresh = UiKit.primary(this, "🔄 刷新");
         btnRefresh.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { refreshLog(); }
@@ -434,12 +444,13 @@ public class MainActivity extends Activity {
         lp1.setMargins(0, 0, dp(8), 0);
         row.addView(btnRefresh, lp1);
         row.addView(btnClearLog, lp2);
-        root.addView(row, mp);
+        root.addView(row, lpRowM);
 
         lvLog = new ListView(this);
         lvLog.setDivider(null);
-        lvLog.setPadding(dp(4), dp(6), dp(4), dp(4));
+        lvLog.setPadding(dp(0), dp(6), dp(0), dp(4));
         lvLog.setClipToPadding(false);
+        lvLog.setDividerHeight(0);
         root.addView(lvLog, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
@@ -451,17 +462,17 @@ public class MainActivity extends Activity {
         LinearLayout cell = new LinearLayout(this);
         cell.setOrientation(LinearLayout.VERTICAL);
         cell.setGravity(Gravity.CENTER);
-        cell.setPadding(dp(4), dp(10), dp(4), dp(10));
+        cell.setPadding(dp(4), dp(12), dp(4), dp(12));
         TextView big = new TextView(this);
         big.setTextSize(20);
-        big.setTextColor(ThemeManager.color(this, ThemeManager.TAB_ON));
+        big.setTextColor(ThemeManager.ICE);
         big.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         big.setGravity(Gravity.CENTER);
         big.setText("0");
         cell.addView(big);
         TextView lb = new TextView(this);
         lb.setTextSize(11);
-        lb.setTextColor(ThemeManager.color(this, ThemeManager.SECONDARY));
+        lb.setTextColor(ThemeManager.SECONDARY);
         lb.setText(label);
         lb.setGravity(Gravity.CENTER);
         cell.addView(lb);
@@ -469,22 +480,33 @@ public class MainActivity extends Activity {
         return big;
     }
 
+    /** 看板小标题：白色粗体。 */
+    private TextView subTitle(String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextSize(14);
+        tv.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        tv.setTextColor(ThemeManager.TEXT);
+        tv.setPadding(dp(2), dp(4), dp(2), dp(8));
+        return tv;
+    }
+
     /** 首页统计单元格。 */
     private TextView statCellHome(LinearLayout row, String icon, String label) {
         LinearLayout cell = new LinearLayout(this);
         cell.setOrientation(LinearLayout.VERTICAL);
         cell.setGravity(Gravity.CENTER);
-        cell.setPadding(dp(4), dp(10), dp(4), dp(10));
+        cell.setPadding(dp(2), dp(8), dp(2), dp(8));
         TextView big = new TextView(this);
         big.setTextSize(20);
-        big.setTextColor(Color.parseColor("#1565C0"));
+        big.setTextColor(ThemeManager.ICE);
         big.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         big.setGravity(Gravity.CENTER);
         big.setText("--");
         TextView small = new TextView(this);
         small.setText(label);
         small.setTextSize(12);
-        small.setTextColor(Color.parseColor("#90A4AE"));
+        small.setTextColor(ThemeManager.SECONDARY);
         small.setGravity(Gravity.CENTER);
         cell.addView(big);
         cell.addView(small);
@@ -498,8 +520,6 @@ public class MainActivity extends Activity {
         List<String> lines = LogStore.read(this, 1000);
         AiAnalyzerCore.Summary s = AiAnalyzerCore.analyze(lines);
         statToday.setText(String.valueOf(s.totalNotices));
-        statNotice = null;
-
         String dayKey = ReportStore.dateKeyNow();
         boolean reportDone = ReportStore.hasReport(this, dayKey);
         statReport.setText(reportDone ? "✅" : "⏳");
@@ -508,13 +528,19 @@ public class MainActivity extends Activity {
         // 累计通知 / 纪要天数
         int todayCount = lines.size();
         statCumNotice.setText(String.valueOf(todayCount));
-        statCumDays.setText(String.valueOf(countReportDays()));
+        // 补充信息：工作/待办/紧急
+        if (statWork != null) statWork.setText(String.valueOf(s.workCount));
+        if (statTodo != null) statTodo.setText(String.valueOf(s.todoCount));
+        if (statUrgent != null) statUrgent.setText(String.valueOf(s.urgentCount));
 
         // 补充信息：待办/紧急/工作 + 上次同步
         String lastSync = Config.get(this, Config.KEY_LAST_SYNC, "");
         statExtra.setText("工作 " + s.workCount + " · 待办 " + s.todoCount + " · 紧急 " + s.urgentCount
                 + "　|　上次同步：" + fmtLastSync(lastSync)
                 + (reportDone ? "" : "　|　今日纪要未生成"));
+        if (tvLastSync != null) {
+            tvLastSync.setText("上次同步 " + fmtLastSync(lastSync));
+        }
 
         fillDashboard();
     }
@@ -527,8 +553,8 @@ public class MainActivity extends Activity {
 
             // === 近7天趋势（真实历史数据）===
             String[][] fwd = StatsStore.lastNDays(this, 7);
-            chart7d.setColors(ThemeManager.color(this, ThemeManager.GRAD_S),
-                    ThemeManager.color(this, ThemeManager.TEXT));
+            chart7d.setColors(ThemeManager.color(this, ThemeManager.IDX_GRAD_S),
+                    ThemeManager.TEXT);
             chart7d.setData(fwd);
 
             // === 今日分类占比（真实）===
@@ -542,7 +568,7 @@ public class MainActivity extends Activity {
                     {"待办", String.valueOf(t), "#F9A825"},
                     {"紧急", String.valueOf(u), "#E53935"},
                     {"会议", String.valueOf(m), "#8E24AA"},
-                    {"其他", String.valueOf(o), "#90A4AE"},
+                    {"其他", String.valueOf(o), "#8B93A3"},
             };
             chartCat.setData(cats);
             String[] names = {"工作", "待办", "紧急", "会议", "其他"};
@@ -562,15 +588,15 @@ public class MainActivity extends Activity {
             // === App TOP5（真实）===
             appTopList.removeAllViews();
             java.util.List<String[]> top = StatsStore.appTop(this, today, 5);
-            if (top.isEmpty()) addLineText(appTopList, "暂无今日数据", "#90A4AE");
-            else for (String[] row : top) addLineText(appTopList, row[0] + "　——　" + row[1] + " 条", "#37474F");
+            if (top.isEmpty()) addLineText(appTopList, "暂无今日数据", "#6C7484");
+            else for (String[] row : top) addLineText(appTopList, row[0] + "　——　" + row[1] + " 条", "#D9DDE6");
 
             // === 小时分布（真实）===
             String[][] hd = new String[24][2];
             long[] hrs = StatsStore.hourDist(this, today);
             for (int i = 0; i < 24; i++) { hd[i][0] = String.valueOf(i); hd[i][1] = String.valueOf(hrs[i]); }
-            chartHour.setColors(ThemeManager.color(this, ThemeManager.ACCENT),
-                    ThemeManager.color(this, ThemeManager.TEXT));
+            chartHour.setColors(ThemeManager.color(this, ThemeManager.IDX_ACCENT),
+                    ThemeManager.TEXT);
             chartHour.setData(hd);
         } catch (Exception ignored) {}
     }
@@ -597,13 +623,16 @@ public class MainActivity extends Activity {
         root.setPadding(dp(2), dp(2), dp(2), dp(2));
 
         TextView title = new TextView(this);
-        title.setText("NotifyBridge for AI");
-        title.setTextSize(22);
-        title.setPadding(0, 0, 0, dp(4));
+        title.setText("☁️ 同步设置");
+        title.setTextSize(18);
+        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        title.setTextColor(ThemeManager.TEXT);
+        title.setPadding(dp(2), 0, dp(2), dp(8));
         root.addView(title, mp);
 
         tvStatus = new TextView(this);
         tvStatus.setTextSize(14);
+        tvStatus.setTextColor(ThemeManager.SECONDARY);
         tvStatus.setPadding(0, 0, 0, dp(12));
         root.addView(tvStatus, mp);
 
@@ -615,20 +644,22 @@ public class MainActivity extends Activity {
 
         root.addView(section("WebDAV 配置"), mp);
 
-        etUrl = new EditText(this);
+        etUrl = UiKit.glassInput(this);
         etUrl.setHint("WebDAV 服务器地址，即上传目标目录（以 / 结尾）");
         etUrl.setText(Config.get(this, Config.KEY_URL, ""));
         root.addView(etUrl, mp);
 
-        etUser = new EditText(this);
+        etUser = UiKit.glassInput(this);
         etUser.setHint("账号");
         etUser.setText(Config.get(this, Config.KEY_USER, ""));
+        etUser.setSingleLine(true);
         root.addView(etUser, mp);
 
-        etPass = new EditText(this);
+        etPass = UiKit.glassInput(this);
         etPass.setHint("密码");
         etPass.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         etPass.setText(Config.getPassword(this));
+        etPass.setSingleLine(true);
         root.addView(etPass, mp);
 
         LinearLayout row1 = new LinearLayout(this);
@@ -656,6 +687,7 @@ public class MainActivity extends Activity {
         TextView lblSync = new TextView(this);
         lblSync.setText("定时批量上传到 WebDAV");
         lblSync.setTextSize(16);
+        lblSync.setTextColor(ThemeManager.TEXT);
         swSync = new Switch(this);
         swSync.setChecked(Config.getBool(this, Config.KEY_SYNC_ENABLED, false));
         swSync.setOnCheckedChangeListener((v, isOn) -> {
@@ -672,6 +704,7 @@ public class MainActivity extends Activity {
 
         tvCached = new TextView(this);
         tvCached.setTextSize(14);
+        tvCached.setTextColor(ThemeManager.SECONDARY);
         tvCached.setPadding(0, 0, 0, dp(8));
         root.addView(tvCached, mp);
 
@@ -709,6 +742,7 @@ public class MainActivity extends Activity {
         String last = Config.get(this, Config.KEY_LAST_SYNC, "");
         tvSync.setText("上次同步：" + fmtLastSync(last));
         tvSync.setTextSize(14);
+        tvSync.setTextColor(ThemeManager.SECONDARY);
         root.addView(tvSync, mp);
 
         return root;
@@ -737,41 +771,84 @@ public class MainActivity extends Activity {
         @Override public long getItemId(int i) { return i; }
 
         @Override public View getView(int position, View convertView, android.view.ViewGroup parent) {
-            TextView tv = (convertView instanceof TextView)
-                    ? (TextView) convertView : new TextView(MainActivity.this);
+            android.widget.FrameLayout cell;
+            TextView tv;
+            View mark;
+            if (convertView instanceof android.widget.FrameLayout
+                    && ((android.widget.FrameLayout) convertView).getChildCount() == 2) {
+                cell = (android.widget.FrameLayout) convertView;
+                tv = (TextView) cell.getChildAt(0);
+                mark = cell.getChildAt(1);
+            } else {
+                cell = new android.widget.FrameLayout(MainActivity.this);
+                tv = new TextView(MainActivity.this);
+                mark = new View(MainActivity.this);
+                cell.addView(tv);
+                cell.addView(mark);
+            }
             String line = data.get(position);
+            int markColor = markColor(line);
             tv.setText(line);
             tv.setTextSize(13);
-            tv.setPadding(0, dp(3), 0, dp(3));
-            tv.setTextColor(logColor(line));
-            return tv;
+            tv.setTextColor(textColor(line));
+            tv.setPadding(dp(10), dp(7), dp(10), dp(7));
+            android.widget.FrameLayout.LayoutParams tvLp =
+                    (android.widget.FrameLayout.LayoutParams) tv.getLayoutParams();
+            if (tvLp == null) { tvLp = new android.widget.FrameLayout.LayoutParams(-1, -2); }
+            tvLp.setMargins(0, 0, 0, 0);
+            tv.setLayoutParams(tvLp);
+            if (markColor == 0) {
+                mark.setVisibility(View.GONE);
+            } else {
+                mark.setVisibility(View.VISIBLE);
+                mark.setBackgroundColor(markColor);
+            }
+            tv.setBackground(UiKit.glassBg(MainActivity.this, 14));
+            android.widget.FrameLayout.LayoutParams mlp = new android.widget.FrameLayout.LayoutParams(
+                    dp(4), -2, android.view.Gravity.START);
+            mlp.setMargins(0, dp(4), 0, dp(4));
+            mark.setLayoutParams(mlp);
+            android.widget.FrameLayout.LayoutParams clp = new android.widget.FrameLayout.LayoutParams(-1, -2);
+            clp.setMargins(0, dp(4), 0, 0);
+            cell.setLayoutParams(clp);
+            return cell;
         }
 
-        private int logColor(String line) {
-            // 通知捕获（普通格式 [HH:mm:ss] 开头，非 RAW/[[）
+        /** 左侧标记线颜色：紧急=橙红，待办=冰蓝，其余透明。 */
+        private int markColor(String line) {
+            String l = line.toLowerCase();
+            if (l.contains("紧急") || l.contains("urgent")) return 0xFFE08A8A;
+            if (l.contains("待办") || l.contains("todo")) return 0xFF8BC7FF;
+            return 0;
+        }
+
+        private int textColor(String line) {
+            // 诊断日志 [[HH:mm:ss]] → 浅紫
             if (line.startsWith("[[") && line.contains("]]")) {
-                // 诊断日志 [[HH:mm:ss]]
                 String l = line.toLowerCase();
                 if (l.contains("失败") || l.contains("错误") || l.contains("exception")
                         || l.contains("error") || l.contains("认证失败") || l.contains("上传失败")) {
-                    return Color.parseColor("#D32F2F"); // 红
+                    return 0xFFE08A8A; // 暗红
                 }
                 if (l.contains("警告") || l.contains("warn") || l.contains("超时")) {
-                    return Color.parseColor("#F57C00"); // 橙
+                    return 0xFFE5B57A; // 浅橙
                 }
-                if (l.contains("成功") || l.contains("已上传") || l.contains("连接成功")
-                        || l.contains("ok")) {
-                    return Color.parseColor("#2E7D32"); // 绿
-                }
-                return Color.parseColor("#0288D1"); // 蓝（普通诊断）
+                return 0xFFC3A6FF; // 浅紫
             }
             if (line.startsWith(">> RAW")) {
-                return Color.parseColor("#90A4AE"); // 灰（原始痕迹）
+                return ThemeManager.MUTED; // 淡灰（原始痕迹）
             }
-            if (line.startsWith("[")) {
-                return Color.parseColor("#7B1FA2"); // 紫（真实通知）
+            if (line.startsWith("[Xposed]")) {
+                return ThemeManager.MINT; // 薄荷绿
             }
-            return Color.parseColor("#37474F"); // 深蓝灰（其他）
+            if (line.startsWith("[") || isNotification(line)) {
+                return ThemeManager.SECONDARY; // 普通通知弱灰
+            }
+            return 0xFFD9DDE6; // 其他
+        }
+
+        private boolean isNotification(String line) {
+            return line.matches("\\[\\d{2}:\\d{2}:?\\d*\\].*");
         }
     }
 
@@ -782,7 +859,7 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(16));
-        root.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
+        root.setBackgroundColor(ThemeManager.BG);
         scroll.addView(root);
         LinearLayout.LayoutParams mp = matcher();
 
@@ -824,14 +901,14 @@ public class MainActivity extends Activity {
         LinearLayout digestCard = UiKit.card(this);
         tvAiGenTime = new TextView(this);
         tvAiGenTime.setTextSize(12);
-        tvAiGenTime.setTextColor(ThemeManager.color(this, ThemeManager.ACCENT));
+        tvAiGenTime.setTextColor(ThemeManager.color(this, ThemeManager.IDX_ACCENT));
         tvAiGenTime.setTypeface(null, android.graphics.Typeface.BOLD);
         tvAiGenTime.setPadding(0, 0, 0, dp(6));
         digestCard.addView(tvAiGenTime, mp);
 
         tvAiDigest = new TextView(this);
         tvAiDigest.setTextSize(14);
-        tvAiDigest.setTextColor(ThemeManager.color(this, ThemeManager.TEXT));
+        tvAiDigest.setTextColor(ThemeManager.TEXT);
         tvAiDigest.setPadding(0, dp(2), 0, dp(2));
         digestCard.addView(tvAiDigest, mp);
         root.addView(digestCard, mp);
@@ -856,7 +933,7 @@ public class MainActivity extends Activity {
         LinearLayout countCard = UiKit.card(this);
         tvAiCount = new TextView(this);
         tvAiCount.setTextSize(14);
-        tvAiCount.setTextColor(ThemeManager.color(this, ThemeManager.TEXT));
+        tvAiCount.setTextColor(ThemeManager.TEXT);
         tvAiCount.setPadding(0, dp(2), 0, dp(2));
         countCard.addView(tvAiCount, mp);
         root.addView(countCard, mp);
@@ -867,10 +944,11 @@ public class MainActivity extends Activity {
     private TextView statCell(LinearLayout row, String label) {
         TextView tv = new TextView(this);
         tv.setTextSize(15);
-        tv.setTextColor(Color.parseColor("#1565C0"));
+        tv.setTextColor(ThemeManager.ICE);
         tv.setGravity(Gravity.CENTER);
         tv.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        tv.setPadding(0, dp(8), 0, dp(8));
+        tv.setPadding(dp(6), dp(8), dp(6), dp(8));
+        tv.setBackground(UiKit.glassBg(this, 14));
         row.addView(tv, new LinearLayout.LayoutParams(0, -2, 1f));
         return tv;
     }
@@ -880,7 +958,7 @@ public class MainActivity extends Activity {
         tv.setText(text);
         tv.setTextSize(16);
         tv.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        tv.setTextColor(Color.parseColor("#37474F"));
+        tv.setTextColor(ThemeManager.TEXT);
         tv.setPadding(dp(4), dp(16), dp(4), dp(6));
         return tv;
     }
@@ -897,7 +975,7 @@ public class MainActivity extends Activity {
             if (ts <= 0) ts = System.currentTimeMillis();
             String timeStr = fmtTime(ts);
             String suffix = (real ? "\n【AI 智能模式】" : "\n【未配置 AI】");
-            tvAiDigest.setText(android.text.Html.fromHtml(renderMarkdown(cached) + "<br/><small style=\"color:#90A4AE\">"
+            tvAiDigest.setText(android.text.Html.fromHtml(renderMarkdown(cached) + "<br/><small style=\"color:#9AA3B2\">"
                     + suffix + "</small>"));
             // 生成时间明确显示到 时:分:秒，放在摘要卡标题下
             setStat(tvAiGenTime, "⏱ 生成于 " + timeStr + "　" + suffix.replace("\n",""));
@@ -918,17 +996,17 @@ public class MainActivity extends Activity {
         aiTodoList.removeAllViews();
         java.util.List<String> todos = (cached != null) ? extractTodos(cached) : cleanTodos(s.todos);
         if (todos.isEmpty()) {
-            addLineText(aiTodoList, "暂无识别到待办事项", "#90A4AE");
+            addLineText(aiTodoList, "暂无识别到待办事项", "#6C7484");
         } else {
-            for (String t : todos) addLineText(aiTodoList, (t.startsWith("✔️") ? "✅ " : "· ") + t.replaceFirst("^✔️ ?", "").replaceFirst("^⚠️ ?", "⚠️ "), "#37474F");
+            for (String t : todos) addLineText(aiTodoList, (t.startsWith("✔️") ? "✅ " : "· ") + t.replaceFirst("^✔️ ?", "").replaceFirst("^⚠️ ?", "⚠️ "), "#D9DDE6");
         }
 
         aiSuggestList.removeAllViews();
         java.util.List<String> sugg = (cached != null) ? extractSuggestions(cached) : s.suggestions;
         if (sugg.isEmpty()) {
-            addLineText(aiSuggestList, "暂无智能建议", "#90A4AE");
+            addLineText(aiSuggestList, "暂无智能建议", "#6C7484");
         } else {
-            for (String g : sugg) addLineText(aiSuggestList, "💡 " + g, "#F57C00");
+            for (String g : sugg) addLineText(aiSuggestList, "💡 " + g, "#8BC7FF");
         }
     }
 
@@ -1108,9 +1186,9 @@ public class MainActivity extends Activity {
         for (String ln : lines) {
             String t = ln.trim();
             if (t.isEmpty()) { sb.append("<br/>"); continue; }
-            if (t.startsWith("### ")) { sb.append("<b style=\"color:#37474F\">").append(t.substring(4)).append("</b><br/>"); }
-            else if (t.startsWith("## ")) { sb.append("<b style=\"color:#1565C0;font-size:16sp\">").append(t.substring(3)).append("</b><br/>"); }
-            else if (t.startsWith("# ")) { sb.append("<b style=\"color:#1565C0;font-size:18sp\">").append(t.substring(2)).append("</b><br/>"); }
+            if (t.startsWith("### ")) { sb.append("<b style=\"color:#D9DDE6\">").append(t.substring(4)).append("</b><br/>"); }
+            else if (t.startsWith("## ")) { sb.append("<b style=\"color:#8BC7FF;font-size:16sp\">").append(t.substring(3)).append("</b><br/>"); }
+            else if (t.startsWith("# ")) { sb.append("<b style=\"color:#8BC7FF;font-size:18sp\">").append(t.substring(2)).append("</b><br/>"); }
             else if (t.startsWith("- ") || t.startsWith("• ")) {
                 String body = t.substring(t.startsWith("- ") ? 2 : 1).trim();
                 // 去掉 Markdown 复选框 "[ ] / [x] / [X]" 占位，改成一个圆点，避免 UI 显示空方框显得乱
@@ -1135,7 +1213,7 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(16));
-        root.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
+        root.setBackgroundColor(ThemeManager.BG);
         scroll.addView(root);
         LinearLayout.LayoutParams mp = matcher();
 
@@ -1143,7 +1221,7 @@ public class MainActivity extends Activity {
         tvKanbanDate = new TextView(this);
         tvKanbanDate.setTextSize(18);
         tvKanbanDate.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        tvKanbanDate.setTextColor(Color.parseColor("#37474F"));
+        tvKanbanDate.setTextColor(Color.parseColor("#D9DDE6"));
         tvKanbanDate.setPadding(0, dp(4), 0, dp(4));
         root.addView(tvKanbanDate, mp);
 
@@ -1161,9 +1239,9 @@ public class MainActivity extends Activity {
         root.addView(cardTitle("📝 AI 工作纪要", mp), mp);
         tvKanbanContent = new TextView(this);
         tvKanbanContent.setTextSize(14);
-        tvKanbanContent.setTextColor(Color.parseColor("#37474F"));
+        tvKanbanContent.setTextColor(Color.parseColor("#D9DDE6"));
         tvKanbanContent.setBackground(ThemeManager.rounded(
-                ThemeManager.color(this, ThemeManager.CARD), ThemeManager.CARD_RADIUS));
+                ThemeManager.GLASS, ThemeManager.CARD_RADIUS));
         tvKanbanContent.setPadding(dp(12), dp(8), dp(12), dp(8));
         root.addView(tvKanbanContent, mp);
 
@@ -1183,9 +1261,9 @@ public class MainActivity extends Activity {
         root.addView(cardTitle("📄 通知日志", mp), mp);
         tvKanbanLog = new TextView(this);
         tvKanbanLog.setTextSize(12);
-        tvKanbanLog.setTextColor(Color.parseColor("#90A4AE"));
+        tvKanbanLog.setTextColor(Color.parseColor("#8B93A3"));
         tvKanbanLog.setBackground(ThemeManager.rounded(
-                ThemeManager.color(this, ThemeManager.CARD), ThemeManager.CARD_RADIUS));
+                ThemeManager.GLASS, ThemeManager.CARD_RADIUS));
         tvKanbanLog.setPadding(dp(10), dp(8), dp(10), dp(8));
         root.addView(tvKanbanLog, mp);
 
@@ -1195,7 +1273,7 @@ public class MainActivity extends Activity {
     private TextView kanbanCell(LinearLayout row, String label) {
         TextView tv = new TextView(this);
         tv.setTextSize(14);
-        tv.setTextColor(Color.parseColor("#1565C0"));
+        tv.setTextColor(Color.parseColor("#8BC7FF"));
         tv.setGravity(Gravity.CENTER);
         tv.setPadding(0, dp(12), 0, dp(12));
         row.addView(tv, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -1337,7 +1415,7 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(16));
-        root.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
+        root.setBackgroundColor(ThemeManager.BG);
         scroll.addView(root);
         LinearLayout.LayoutParams mp = matcher();
 
@@ -1360,11 +1438,11 @@ public class MainActivity extends Activity {
             TextView lbl = new TextView(this);
             lbl.setText(menuNames[i]);
             lbl.setTextSize(15);
-            lbl.setTextColor(ThemeManager.color(this, ThemeManager.TEXT));
+            lbl.setTextColor(ThemeManager.TEXT);
             android.widget.TextView arrow = new android.widget.TextView(this);
             arrow.setText("\u203A");   // › 向右折叠
             arrow.setTextSize(20);
-            arrow.setTextColor(ThemeManager.color(this, ThemeManager.SECONDARY));
+            arrow.setTextColor(ThemeManager.SECONDARY);
             arrow.setGravity(Gravity.CENTER_VERTICAL);
             menuArrows.add(arrow);   // 记录箭头，切换时改方向
             row.addView(lbl, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -1414,7 +1492,7 @@ public class MainActivity extends Activity {
         lbl.setText("选择主题风格");
         lbl.setTextSize(14);
         lbl.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lbl.setTextColor(Color.parseColor("#5A9BD5"));
+        lbl.setTextColor(ThemeManager.SECONDARY);
         lbl.setPadding(dp(4), dp(6), dp(4), dp(6));
         p.addView(lbl, mp);
         LinearLayout themeRow = new LinearLayout(this);
@@ -1426,20 +1504,20 @@ public class MainActivity extends Activity {
             cell.setOrientation(LinearLayout.VERTICAL);
             cell.setGravity(Gravity.CENTER);
             cell.setPadding(dp(4), dp(4), dp(4), dp(4));
-            cell.setBackground(ThemeManager.rounded(
-                    curTheme == ti ? ThemeManager.color(ti, ThemeManager.ACCENT) : Color.TRANSPARENT,
-                    Color.WHITE, 10, curTheme == ti ? 3 : 0));
+            android.graphics.drawable.GradientDrawable cbg = (android.graphics.drawable.GradientDrawable) UiKit.glassBg(this, 12);
+            if (curTheme == ti) cbg.setStroke(2, 0xFF8BC7FF);
+            cell.setBackground(cbg);
             android.widget.FrameLayout sw = new android.widget.FrameLayout(this);
             android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable(
                     android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
-                    new int[]{ThemeManager.color(ti, ThemeManager.GRAD_S), ThemeManager.color(ti, ThemeManager.GRAD_E)});
+                    new int[]{ThemeManager.color(ti, ThemeManager.IDX_GRAD_S), ThemeManager.color(ti, ThemeManager.IDX_GRAD_E)});
             gd.setCornerRadius(dp(6));
             sw.setBackground(gd);
             cell.addView(sw, new android.widget.FrameLayout.LayoutParams(dp(36), dp(24)));
             TextView nm = new TextView(this);
-            nm.setText(ThemeManager.THEME_NAMES[ti]);
+            nm.setText((curTheme == ti ? "✓ " : "") + ThemeManager.THEME_NAMES[ti]);
             nm.setTextSize(11);
-            nm.setTextColor(Color.parseColor("#37474F"));
+            nm.setTextColor(curTheme == ti ? ThemeManager.ICE : ThemeManager.TEXT);
             nm.setGravity(Gravity.CENTER);
             cell.addView(nm);
             cell.setOnClickListener(new View.OnClickListener() {
@@ -1458,13 +1536,13 @@ public class MainActivity extends Activity {
     private void buildAiPanel(LinearLayout p, LinearLayout.LayoutParams mp) {
         LinearLayout rowAi = rowSwitch("🤖 AI 智能分析", "ai_enabled", true);
         p.addView(rowAi, mp);
-        addLineText(p, "模式：" + aiModeSuffix(), "#90A4AE");
+        addLineText(p, "模式：" + aiModeSuffix(), "#8B93A3");
         aiModeGroup = new android.widget.RadioGroup(this);
         aiModeGroup.setOrientation(android.widget.RadioGroup.HORIZONTAL);
         android.widget.RadioButton rbD = new android.widget.RadioButton(this);
-        rbD.setId(101); rbD.setText("直连");
+        rbD.setId(101); rbD.setText("直连"); rbD.setTextColor(ThemeManager.TEXT);
         android.widget.RadioButton rbR = new android.widget.RadioButton(this);
-        rbR.setId(102); rbR.setText("中转");
+        rbR.setId(102); rbR.setText("中转"); rbR.setTextColor(ThemeManager.TEXT);
         aiModeGroup.addView(rbD); aiModeGroup.addView(rbR);
         String md = Config.get(this, Config.KEY_AI_MODE, "direct");
         rbD.setChecked(!"relay".equals(md)); rbR.setChecked("relay".equals(md));
@@ -1474,28 +1552,31 @@ public class MainActivity extends Activity {
         String pk = Config.getAiKey(this); pk = pk.isEmpty() ? AIAnalyzer.PRESET_API_KEY : pk;
         String pm = Config.get(this, Config.KEY_AI_MODEL, ""); pm = pm.isEmpty() ? AIAnalyzer.PRESET_MODEL : pm;
         String pr = Config.get(this, Config.KEY_AI_RELAY_URL, "");
-        aiBase = new EditText(this);
+        aiBase = UiKit.glassInput(this);
+        aiBase.setSingleLine(true);
         aiBase.setHint("Base URL"); aiBase.setText(pb); p.addView(aiBase, mp);
-        aiKey = new EditText(this);
+        aiKey = UiKit.glassInput(this);
+        aiKey.setSingleLine(true);
         aiKey.setHint("API Key"); aiKey.setText(pk); p.addView(aiKey, mp);
-        aiModel = new EditText(this);
+        aiModel = UiKit.glassInput(this);
+        aiModel.setSingleLine(true);
         aiModel.setHint("模型名"); aiModel.setText(pm); p.addView(aiModel, mp);
-        aiRelay = new EditText(this);
+        aiRelay = UiKit.glassInput(this);
+        aiRelay.setSingleLine(true);
         aiRelay.setHint("中转 URL（中转模式用）"); aiRelay.setText(pr); p.addView(aiRelay, mp);
 
         TextView lblPrompt = new TextView(this);
         lblPrompt.setText("📝 分析提示词（所有分析都用这个）");
         lblPrompt.setTextSize(13);
         lblPrompt.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lblPrompt.setTextColor(Color.parseColor("#5A9BD5"));
+        lblPrompt.setTextColor(ThemeManager.ICE);
         lblPrompt.setPadding(dp(4), dp(8), dp(4), dp(4));
         p.addView(lblPrompt, mp);
-        aiPrompt = new EditText(this);
-        aiPrompt.setText(AIAnalyzer.getPrompt(this));
+        aiPrompt = UiKit.glassInput(this);
         aiPrompt.setGravity(Gravity.TOP | Gravity.START);
         aiPrompt.setMinLines(6);
         aiPrompt.setTextSize(12);
-        aiPrompt.setPadding(dp(6), dp(6), dp(6), dp(6));
+        aiPrompt.setText(AIAnalyzer.getPrompt(this));
         p.addView(aiPrompt, mp);
 
         Button btnAiSave = UiKit.primary(this, "💾 保存 AI 配置并测试");
@@ -1529,18 +1610,18 @@ public class MainActivity extends Activity {
         p.addView(rowGen, mp);
         LinearLayout rowRep = rowSwitch("📝 自动生成纪要", Config.KEY_AI_REPORT, true);
         p.addView(rowRep, mp);
-        addLineText(p, "「AI 智能分析」开启后，每天自动/手动生成通知沉淀纪要。", "#90A4AE");
+        addLineText(p, "「AI 智能分析」开启后，每天自动/手动生成通知沉淀纪要。", "#8B93A3");
         TextView tip = new TextView(this);
         tip.setText("生成入口：首页「📊数据看板」上方或「🤖AI」页「手动生成今日纪要」");
         tip.setTextSize(12);
-        tip.setTextColor(Color.parseColor("#90A4AE"));
+        tip.setTextColor(Color.parseColor("#8B93A3"));
         tip.setPadding(dp(4), dp(6), dp(4), dp(2));
         p.addView(tip, mp);
     }
 
     /** 🔍 通知过滤面板。 */
     private void buildFilterPanel(LinearLayout p, LinearLayout.LayoutParams mp) {
-        addLineText(p, "设置黑白名单、关键词优先级，控制哪些应用的通知进入统计与纪要。", "#90A4AE");
+        addLineText(p, "设置黑白名单、关键词优先级，控制哪些应用的通知进入统计与纪要。", "#8B93A3");
         Button btnFilter = UiKit.primary(this, "🔍 打开通知过滤设置");
         btnFilter.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -1559,7 +1640,7 @@ public class MainActivity extends Activity {
         t.setText("消息获取方式");
         t.setTextSize(14);
         t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        t.setTextColor(Color.parseColor("#5A9BD5"));
+        t.setTextColor(Color.parseColor("#8BC7FF"));
         t.setPadding(dp(4), dp(4), dp(4), dp(6));
         p.addView(t, mp);
 
@@ -1599,7 +1680,7 @@ public class MainActivity extends Activity {
         modeTip.setText("消息获取模式");
         modeTip.setTextSize(13);
         modeTip.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        modeTip.setTextColor(Color.parseColor("#5A9BD5"));
+        modeTip.setTextColor(Color.parseColor("#8BC7FF"));
         modeTip.setPadding(dp(4), dp(10), dp(4), dp(4));
         p.addView(modeTip, mp);
 
@@ -1618,7 +1699,7 @@ public class MainActivity extends Activity {
         modeRow.addView(modeLabel, new LinearLayout.LayoutParams(0, -2, 1f));
         modeRow.addView(swXposed);
         p.addView(modeRow, mp);
-        addLineText(p, "开启后在 LSPosed 启用本模块 → 作用域勾选微信(com.tencent.mm) → 强制停止微信。可 Hook 到“电脑登录也不推送”的消息。", "#90A4AE");
+        addLineText(p, "开启后在 LSPosed 启用本模块 → 作用域勾选微信(com.tencent.mm) → 强制停止微信。可 Hook 到“电脑登录也不推送”的消息。", "#8B93A3");
 
         // 去 LSPosed 引导
         Button btnLsposed = UiKit.ghost(this, "🧩 打开 LSPosed 管理器");
@@ -1641,7 +1722,7 @@ public class MainActivity extends Activity {
         keepTip.setText("🔋 后台/锁屏收不到？多为小米后台限制");
         keepTip.setTextSize(13);
         keepTip.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        keepTip.setTextColor(Color.parseColor("#5A9BD5"));
+        keepTip.setTextColor(Color.parseColor("#8BC7FF"));
         keepTip.setPadding(dp(4), dp(10), dp(4), dp(4));
         p.addView(keepTip, mp);
         Button btnAutostart = UiKit.primary(this, "⚙️ 允许自启动");
@@ -1660,10 +1741,10 @@ public class MainActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lpAuto.setMargins(0, dp(4), 0, dp(4));
         p.addView(btnAutostart, lpAuto);
-        addLineText(p, "小米还需：设置-应用-NotifyBridge-省电策略设为「无限制」，并允许后台运行与自启动。锁屏收不到通常因后台被限制。", "#90A4AE");
+        addLineText(p, "小米还需：设置-应用-NotifyBridge-省电策略设为「无限制」，并允许后台运行与自启动。锁屏收不到通常因后台被限制。", "#8B93A3");
 
         // Xposed 状态提示（读 /data/local/tmp 或广播收不到时提示排查）
-        addLineText(p, "提示：Xposed 消息会经广播进入日志与统计，若收不到请在 LSPosed 日志确认已注入微信。", "#90A4AE");
+        addLineText(p, "提示：Xposed 消息会经广播进入日志与统计，若收不到请在 LSPosed 日志确认已注入微信。", "#8B93A3");
 
         // 刷新监听状态
         stListener.post(new Runnable() {
@@ -1729,7 +1810,7 @@ public class MainActivity extends Activity {
             TextView empty = new TextView(this);
             empty.setText("暂无每日 MD 日志");
             empty.setTextSize(14);
-            empty.setTextColor(Color.parseColor("#90A4AE"));
+            empty.setTextColor(Color.parseColor("#8B93A3"));
             empty.setPadding(dp(2), dp(8), dp(2), dp(8));
             list.addView(empty, matcher());
             return;
@@ -1746,9 +1827,9 @@ public class MainActivity extends Activity {
             TextView row = new TextView(this);
             row.setText(date + "   " + size);
             row.setTextSize(14);
-            row.setTextColor(Color.parseColor("#37474F"));
-            row.setPadding(dp(4), dp(10), dp(4), dp(10));
-            row.setBackground(ThemeManager.rounded(Color.WHITE, Color.parseColor("#F4F8FA"), 8, 1));
+            row.setTextColor(ThemeManager.TEXT);
+            row.setPadding(dp(12), dp(12), dp(12), dp(12));
+            row.setBackground(UiKit.glassBg(this, 14));
             row.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
             row.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -1770,7 +1851,7 @@ public class MainActivity extends Activity {
         TextView tv = new TextView(this);
         tv.setText(content);
         tv.setTextSize(14);
-        tv.setTextColor(Color.parseColor("#37474F"));
+        tv.setTextColor(Color.parseColor("#D9DDE6"));
         tv.setPadding(dp(16), dp(16), dp(16), dp(16));
         tv.setTypeface(android.graphics.Typeface.MONOSPACE);
         sv.addView(tv);
@@ -1823,7 +1904,7 @@ public class MainActivity extends Activity {
         TextView lbl = new TextView(this);
         lbl.setText(label);
         lbl.setTextSize(16);
-        lbl.setTextColor(Color.parseColor("#37474F"));
+        lbl.setTextColor(Color.parseColor("#D9DDE6"));
         Switch sw = new Switch(this);
         sw.setChecked(Config.getBool(this, prefKey, def));
         sw.setOnCheckedChangeListener((v, isOn) -> Config.putBool(this, prefKey, isOn));
@@ -1856,8 +1937,10 @@ public class MainActivity extends Activity {
         TextView tv = new TextView(this);
         tv.setText(t);
         tv.setTextSize(17);
-        tv.setTextColor(Color.parseColor("#5A9BD5")); // 清新蓝
-        tv.setPadding(0, dp(16), 0, dp(6));
+        tv.setTextColor(ThemeManager.ICE);
+        tv.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        tv.setPadding(dp(12), dp(8), dp(12), dp(8));
+        tv.setBackground(UiKit.glassBg(this, 14));
         return tv;
     }
 
@@ -1882,8 +1965,12 @@ public class MainActivity extends Activity {
                 v.setText(msg);
                 v.setTextSize(14);
                 v.setPadding(dp(20), dp(12), dp(20), dp(12));
-                v.setTextColor(Color.parseColor(err ? "#C0392B" : "#2E7D32"));
-                v.setBackgroundColor(Color.parseColor(err ? "#FDEDEC" : "#F1F8E9"));
+                v.setTextColor(err ? 0xFFE5B57A : 0xFF82E0AA);
+                android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+                g.setColor(0xE81E202D);
+                g.setCornerRadius(dp(16));
+                g.setStroke(1, 0x22FFFFFF);
+                v.setBackground(g);
                 v.setGravity(Gravity.CENTER);
                 t.setView(v);
                 t.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, 0, dp(60));
@@ -1916,7 +2003,7 @@ public class MainActivity extends Activity {
         tvStatus.setText(on
                 ? "✅ 通知监听已授权 · 前台保活已启动"
                 : "⚠️ 通知监听未开启，请先在系统设置中授权");
-        tvStatus.setTextColor(on ? Color.parseColor("#2E7D32") : Color.parseColor("#C62828"));
+        tvStatus.setTextColor(on ? Color.parseColor("#82E0AA") : Color.parseColor("#E5B57A"));
         if (on) {
             UploadScheduler.scheduleRepeating(this);
             startKeepAlive();

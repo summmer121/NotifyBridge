@@ -17,8 +17,8 @@ public final class Charts {
 
     public static final class BarChartView extends View {
         private String[][] data;
-        private int barColor = 0xFF5B9BD5;
-        private int textColor = 0xFF37474F;
+        private int barColor = 0xFF8BC7FF;
+        private int textColor = 0xFFF5F6FA;
 
         public BarChartView(Context c, String[][] data) {
             super(c); setData0(data);
@@ -113,7 +113,7 @@ public final class Charts {
                     start += sweep;
                 }
             } else {
-                p.setColor(0xFFE0E0E0);
+                p.setColor(0xFF3A3F4C);
                 cv.drawArc(oval, 0, 360, false, p);
             }
 
