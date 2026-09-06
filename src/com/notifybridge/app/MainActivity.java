@@ -1329,20 +1329,16 @@ public class MainActivity extends Activity {
      * 之前"命中按天缓存就 return、直接忽略日志"导致缓存残缺时纪要丢微信——已修复。
      */
     private List<String> loadDayReportLines(String dayKey) {
-        java.util.List<String> lines = LogStore.read(this, 2000);   // 完整日志(全量,含微信)
-        // 追加按天缓存文件（补充结构化按天数据）
-        try {
-            java.io.File dir = new java.io.File(getFilesDir(), "pending");
-            java.io.File f = new java.io.File(dir, dayKey + "-notifications.md");
-            if (f.exists()) {
-                String content = NotificationCache.readFile(this, f);
-                for (String line : content.split("\\n")) {
-                    String t = line.trim();
-                    if (!t.isEmpty()) lines.add(t);
-                }
+        // 数据源统一为当日 dailynote 的 Markdown（与 WebDAV 上传保持同一份数据），
+        // 不再混用全局 capture.log 与旧 pending 缓存，避免跨天残缺/混入。
+        String content = DailyLog.readByDay(this, dayKey);
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        if (!content.isEmpty()) {
+            for (String line : content.split("\\n")) {
+                String t = line.trim();
+                if (!t.isEmpty()) lines.add(t);
             }
-        } catch (Throwable ignored) {}
-        // 语义去重 + 过滤诊断/RAW/纯App名垃圾行，避免 AI 拿到大量重复输入
+        }
         return dedupeReportLines(lines);
     }
 
@@ -1820,6 +1816,8 @@ public class MainActivity extends Activity {
 
     /** 在存储管理面板里列出 dailynote md 文件，点击可预览内容。 */
     private void renderDailyFiles(final LinearLayout list) {
+        // 打开存储管理时主动清理已上传的过期文件（避免无新通知时残留）
+        DailyLog.sweepNow(MainActivity.this);
         list.removeAllViews();
         File[] files = DailyLog.files(MainActivity.this);
         if (files.length == 0) {

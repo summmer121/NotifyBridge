@@ -17,10 +17,11 @@ public class NotifyXposedReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
         if (!ACTION.equals(intent.getAction())) return;
-        // 安全：仅接受显式投递给本包的有界广播（NotifyHooker 已 setPackage）。
-        // 未指定包名的隐式广播直接丢弃，避免被其他应用塞入伪造消息。
+        // 安全：仅接受显式投递给本包组件的有界广播（NotifyHooker 已 setComponent）。
+        // 要求 intent 显式组件包名严格等于本包，隐式广播一律丢弃，避免外部伪造 XP_MSG。
         try {
-            if (intent.getPackage() != null && !NotifyHooker.PKG.equals(intent.getPackage())) return;
+            android.content.ComponentName cn = intent.getComponent();
+            if (cn == null || !NotifyHooker.PKG.equals(cn.getPackageName())) return;
         } catch (Throwable ignored) {}
         String from = intent.getStringExtra("from");
         String body = intent.getStringExtra("body");
@@ -30,15 +31,12 @@ public class NotifyXposedReceiver extends BroadcastReceiver {
         // 内容净化：限长、去控制字符，防止超长/异常内容破坏缓存与统计
         if (body.length() > 2000) body = body.substring(0, 2000);
 
-        // 记诊断日志 + 统一缓存（与通知监听通道一致，供统计/纪要/上传）
+        // 记诊断日志 + 日更 Markdown（供统计/纪要/上传）；旧 pending 缓存已废弃，不再写入。
         try {
             String tag = "com.tencent.mm".equals(from) ? "[微信] " : ("[" + from + "] ");
             LogStore.diag(context, tag + body);
             // 面向用户的日更 Markdown 日志：时间戳 + 内容
             DailyLog.append(context, ts, tag + body);
-        } catch (Throwable ignored) {}
-        try {
-            NotificationCache.append(context, from, appLabel(context, from), body, body, ts);
         } catch (Throwable ignored) {}
         try {
             StatsStore.record(context, ts, from, categorize(body));
@@ -58,13 +56,6 @@ public class NotifyXposedReceiver extends BroadcastReceiver {
         for (String w : todo) if (b.contains(w)) return "todo";
         for (String w : work) if (b.contains(w)) return "work";
         return "other";
-    }
-
-    private String appLabel(Context c, String pkg) {
-        try {
-            android.content.pm.PackageManager pm = c.getPackageManager();
-            return String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)));
-        } catch (Throwable t) { return pkg; }
     }
 
     private int hrefOf(long ts) { return 0; }  // unused

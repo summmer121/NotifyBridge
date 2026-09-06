@@ -11,6 +11,8 @@ import android.content.Intent;
  */
 public final class UploadScheduler {
     private static final int REQ_UPLOAD = 1001;
+    private static volatile long lastTriggerMs = 0L;
+    private static final long TRIGGER_THROTTLE_MS = 60 * 1000L;
 
     private UploadScheduler() {}
 
@@ -44,9 +46,12 @@ public final class UploadScheduler {
     /** 立即触发一次上传（写缓存阈值或手动同步）。 */
     public static void triggerUpload(Context ctx) {
         if (!Config.getBool(ctx, Config.KEY_SYNC_ENABLED, false)) {
-            // 同步未开启也允许手动触发 --- 手动按钮单独走 MainActivity
+            // 自动触发仅在开启同步时生效；手动按钮单独走 MainActivity
             return;
         }
+        long now = System.currentTimeMillis();
+        if (now - lastTriggerMs < TRIGGER_THROTTLE_MS) return; // 节流：至少间隔 60s
+        lastTriggerMs = now;
         AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
         am.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 100, pending(ctx));
     }

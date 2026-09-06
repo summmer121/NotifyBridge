@@ -321,7 +321,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 if (!isMessageTable(table)) return;
                                 String parsed = formatWeChatMessage(table, cv, p.thisObject);
                                 if (parsed != null && !parsed.isEmpty()) {
-                                    broadcastWeChat("com.tencent.mm", parsed);
+                                    broadcastWeChat("com.tencent.mm", parsed, extractCreateTime(cv));
                                 }
                             } catch (Throwable ignored) {}
                         }
@@ -347,7 +347,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 if (!isMessageTable(table)) return;
                                 String parsed = formatWeChatMessage(table, cv, p.thisObject);
                                 if (parsed != null && !parsed.isEmpty()) {
-                                    broadcastWeChat("com.tencent.mm", parsed);
+                                    broadcastWeChat("com.tencent.mm", parsed, extractCreateTime(cv));
                                 }
                             } catch (Throwable ignored) {}
                         }
@@ -372,7 +372,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 if (!isMessageTable(table)) return;
                                 String parsed = formatWeChatMessage(table, cv, p.thisObject);
                                 if (parsed != null && !parsed.isEmpty()) {
-                                    broadcastWeChat("com.tencent.mm", parsed);
+                                    broadcastWeChat("com.tencent.mm", parsed, extractCreateTime(cv));
                                 }
                             } catch (Throwable ignored) {}
                         }
@@ -397,7 +397,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 if (!isMessageTable(table)) return;
                                 String parsed = formatWeChatMessage(table, cv, p.thisObject);
                                 if (parsed != null && !parsed.isEmpty()) {
-                                    broadcastWeChat("com.tencent.mm", parsed);
+                                    broadcastWeChat("com.tencent.mm", parsed, extractCreateTime(cv));
                                 }
                             } catch (Throwable ignored) {}
                         }
@@ -422,7 +422,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 if (!isMessageTable(table)) return;
                                 String parsed = formatWeChatMessage(table, cv, p.thisObject);
                                 if (parsed != null && !parsed.isEmpty()) {
-                                    broadcastWeChat("com.tencent.mm", parsed);
+                                    broadcastWeChat("com.tencent.mm", parsed, extractCreateTime(cv));
                                 }
                             } catch (Throwable ignored) {}
                         }
@@ -447,7 +447,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                 if (isMessageTable(table)) {
                                     String parsed = formatWeChatMessage(table, cv, p.thisObject);
                                     if (parsed != null && !parsed.isEmpty()) {
-                                        broadcastWeChat("com.tencent.mm", parsed);
+                                        broadcastWeChat("com.tencent.mm", parsed, extractCreateTime(cv));
                                     }
                                 }
                             } catch (Throwable ignored) {}
@@ -474,7 +474,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
                                     if (isMessageTable(table)) {
                                         String parsed = formatWeChatMessage(table, cv, p.thisObject);
                                         if (parsed != null && !parsed.isEmpty()) {
-                                            broadcastWeChat("com.tencent.mm", parsed);
+                                            broadcastWeChat("com.tencent.mm", parsed, extractCreateTime(cv));
                                         }
                                     }
                                 }
@@ -942,6 +942,30 @@ public class NotifyHooker implements IXposedHookLoadPackage {
         } catch (Throwable ignored) {}
     }
 
+    /** 从 ContentValues 提取消息真实时间（微信 createTime 为秒级），无则返回 0。 */
+    private static long extractCreateTime(ContentValues cv) {
+        if (cv == null) return 0L;
+        String[] keys = {"createTime", "msgCreateTime", "mCreateTime", "serverTime", "time"};
+        for (String k : keys) {
+            try {
+                long sec = 0L;
+                Object v = cv.get(k);
+                if (v instanceof Number) {
+                    sec = ((Number) v).longValue();
+                } else if (v instanceof String) {
+                    sec = Long.parseLong(((String) v).trim());
+                }
+                if (sec > 0) {
+                    long ms = sec < 100000000000L ? sec * 1000L : sec; // 秒级->毫秒
+                    long now = System.currentTimeMillis();
+                    if (Math.abs(ms - now) < 365L * 48 * 3600 * 1000) return ms;
+                    return now > 0 ? now : ms; // 极端异常时间退回当前
+                }
+            } catch (Throwable ignored) {}
+        }
+        return 0L;
+    }
+
     private static String strValue(Object v) {
         return v == null ? "" : String.valueOf(v);
     }
@@ -1056,6 +1080,11 @@ public class NotifyHooker implements IXposedHookLoadPackage {
 
     /** 把微信消息以广播发给 NotifyBridge App（跨进程 IPC）。带基础去重，防刷屏。 */
     public static void broadcastWeChat(String fromPkg, String text) {
+        broadcastWeChat(fromPkg, text, System.currentTimeMillis());
+    }
+
+    /** 带真实消息时间戳的广播版本（ts 由微信 createTime 提取，秒级）。 */
+    public static void broadcastWeChat(String fromPkg, String text, long ts) {
         try {
             if (text == null || text.isEmpty()) return;
             // 轻量去重：同文本且 8 秒内已广播过则跳过（多切点/重复写库场景）
@@ -1075,7 +1104,7 @@ public class NotifyHooker implements IXposedHookLoadPackage {
             i.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
             i.putExtra("from", fromPkg);
             i.putExtra("body", text);
-            i.putExtra("ts", System.currentTimeMillis());
+            i.putExtra("ts", ts > 0 ? ts : System.currentTimeMillis());
             sc.sendBroadcast(i);
         } catch (Throwable ignored) {}
     }

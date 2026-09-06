@@ -22,9 +22,11 @@ public final class DailyLog {
     private static final String TAG = "DailyLog";
     private static final String DIR = "dailylogs";
     private static final String PREFIX = "dailynote";
+    private static final String UP_PREF = "dailylog_uploaded";
 
-    // Avoid re-scanning the directory on every append within the same day.
-    private static volatile String lastSweepDay = "";
+    // Avoid re-scanning the directory on every append; throttle to once an hour.
+    private static volatile long lastSweepMs = 0L;
+    private static final long SWEEP_THROTTLE_MS = 60 * 60 * 1000L;
 
     private DailyLog() {}
 
@@ -85,14 +87,44 @@ public final class DailyLog {
         }
     }
 
-    /** Prune dailynote files older than keepDays. */
+    /** Map a "yyyy-MM-dd" day key to the matching dailynote file, or null if absent. */
+    public static File fileForDay(Context c, String dayKey) {
+        if (dayKey == null) return null;
+        String ymd = dayKey.replace("-", "").replace("/", "");
+        if (ymd.length() != 8) return null;
+        File f = new File(dir(c), PREFIX + ymd + ".md");
+        return f.exists() ? f : null;
+    }
+
+    /** Read a day's dailynote content by "yyyy-MM-dd" key; empty string if absent. */
+    public static String readByDay(Context c, String dayKey) {
+        File f = fileForDay(c, dayKey);
+        return f == null ? "" : readFile(f);
+    }
+
+    /** Prune dailynote files older than keepDays. Throttled: at most once an hour. */
     public static synchronized void sweep(Context c, int keepDays) {
         try {
-            String today = new SimpleDateFormat("yyyyMMdd", Locale.US)
-                    .format(new Date(System.currentTimeMillis()));
-            if (today.equals(lastSweepDay)) return;
-            lastSweepDay = today;
+            long now = System.currentTimeMillis();
+            if (now - lastSweepMs < SWEEP_THROTTLE_MS) return;
+            lastSweepMs = now;
+            doSweep(c, keepDays);
+        } catch (Exception e) {
+            Log.w(TAG, "sweep err", e);
+        }
+    }
 
+    /** Force a prune pass regardless of throttle (upload run / storage panel open). */
+    public static synchronized void sweepNow(Context c) {
+        try {
+            doSweep(c, keepDays(c));
+        } catch (Exception e) {
+            Log.w(TAG, "sweepNow err", e);
+        }
+    }
+
+    private static void doSweep(Context c, int keepDays) {
+        try {
             long cutoff = System.currentTimeMillis() - (long) keepDays * 24L * 3600L * 1000L;
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd", Locale.US);
             for (File f : files(c)) {
@@ -103,15 +135,35 @@ public final class DailyLog {
                 if (ymd.length() != 8) continue;
                 try {
                     Date d = sdf.parse(ymd);
-                    if (d != null && d.getTime() < cutoff) {
+                    // Only delete files that both expired AND were already uploaded,
+                    // so offline/never-synced data is never lost.
+                    boolean expired = d != null && d.getTime() < cutoff;
+                    if (expired && isUploaded(c, name)) {
                         //noinspection ResultOfMethodCallIgnored
                         f.delete();
+                        markUploaded(c, name, false);
                     }
                 } catch (Exception ignored) {}
             }
         } catch (Exception e) {
-            Log.w(TAG, "sweep err", e);
+            Log.w(TAG, "doSweep err", e);
         }
+    }
+
+    /** Mark a dailynote file as successfully uploaded (or clear the flag). */
+    public static void markUploaded(Context c, String fileName, boolean uploaded) {
+        try {
+            c.getSharedPreferences(UP_PREF, Context.MODE_PRIVATE)
+                    .edit().putBoolean(fileName, uploaded).apply();
+        } catch (Exception ignored) {}
+    }
+
+    /** Whether a dailynote file has been successfully uploaded to WebDAV. */
+    public static boolean isUploaded(Context c, String fileName) {
+        try {
+            return c.getSharedPreferences(UP_PREF, Context.MODE_PRIVATE)
+                    .getBoolean(fileName, false);
+        } catch (Exception ignored) { return false; }
     }
 
     private static int keepDays(Context c) {

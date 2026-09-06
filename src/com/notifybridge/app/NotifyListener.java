@@ -77,24 +77,19 @@ public class NotifyListener extends NotificationListenerService {
                 LogStore.log(ctx, appName, pkg, merged, body, postTime);
             }
 
-            // 有正文才写缓存（避免把空通知上传）
+            // 有正文才写日志（避免把空通知上传）
             if (!title.isEmpty() || !body.isEmpty()) {
-                NotificationCache.append(ctx, pkg, appName, merged, body, postTime);
                 // 面向用户的日更 Markdown 日志
                 String readable = (merged.isEmpty() ? "" : merged) +
                         (merged.isEmpty() || body.isEmpty() ? "" : " ") + body;
                 DailyLog.append(ctx, postTime, "[" + appName + "] " + readable.trim());
+                // 有新通知则唤醒一次同步（Uploader 单线程串行且节流，不堆积）
+                UploadScheduler.triggerUpload(ctx);
                 // 累加当日统计（图表看板数据源）
                 String cat = classify(body + title);
                 StatsStore.record(ctx, postTime, pkg, cat);
             }
 
-            // 达到批量阈值触发上传（非阻塞）
-            int batch = Config.getInt(ctx, Config.KEY_UPLOAD_BATCH_SIZE, 10);
-            int cached = Config.getInt(ctx, Config.KEY_CACHED_COUNT, 0);
-            if (batch > 0 && cached >= batch && Config.getBool(ctx, Config.KEY_SYNC_ENABLED, false)) {
-                UploadScheduler.triggerUpload(ctx);
-            }
         } catch (Exception e) {
             android.util.Log.w("NotifyListener", "onPosted err", e);
         }

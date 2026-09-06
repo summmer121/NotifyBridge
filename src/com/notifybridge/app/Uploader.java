@@ -6,7 +6,8 @@ import android.os.Looper;
 import android.util.Log;
 
 import java.io.File;
-import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * 上传执行器：把本地按天生成的 daily note Markdown 批量上传到 WebDAV。
@@ -15,6 +16,12 @@ import java.util.List;
  */
 public final class Uploader {
     private static final String TAG = "Uploader";
+
+    /**
+     * 单线程串行执行所有上传任务：自动定时、手动同步、batch 触发共用同一队列，
+     * 避免并发线程对同一批文件重复/交错上传。
+     */
+    private static final ExecutorService EXEC = Executors.newSingleThreadExecutor();
 
     public interface Callback {
         void onResult(boolean success, String message);
@@ -25,12 +32,15 @@ public final class Uploader {
     /** 测试 WebDAV 连接（子线程执行）。 */
     public static void test(final Context ctx, final String url, final String user,
                             final String pass, final Callback cb) {
-        new Thread(new Runnable() {
+        EXEC.submit(new Runnable() {
             @Override public void run() {
                 boolean ok;
                 String msg;
                 try {
                     WebDavClient client = new WebDavClient(url, user, pass);
+                    if (url.startsWith("http://")) {
+                        LogStore.diag(ctx, "⚠️ 使用明文 HTTP，WebDAV 凭证会以 Base64 明文传输，请优先启用 HTTPS");
+                    }
                     String r = client.test();
                     ok = true;
                     msg = "连接成功 " + r;
@@ -47,12 +57,12 @@ public final class Uploader {
                     @Override public void run() { if (cb != null) cb.onResult(fOk, fMsg); }
                 });
             }
-        }).start();
+        });
     }
 
     /** 执行上传。可在任意线程调用；网络在子线程进行。 */
     public static void run(final Context ctx, final Callback cb) {
-        new Thread(new Runnable() {
+        EXEC.submit(new Runnable() {
             @Override public void run() {
                 boolean ok;
                 String msg;
@@ -64,8 +74,13 @@ public final class Uploader {
                         throw new IllegalStateException("请先配置 WebDAV 服务器与账号");
                     }
                     WebDavClient client = new WebDavClient(url, user, pass);
+                    if (url.startsWith("http://")) {
+                        LogStore.diag(ctx, "⚠️ 使用明文 HTTP，WebDAV 凭证会以 Base64 明文传输，请优先启用 HTTPS");
+                    }
                     // 记录目标服务器
                     LogStore.diag(ctx, "WebDAV 目标: " + client.getBaseUrl());
+                    // 上传前清理已上传的过期文件；未上传的旧数据不会被删
+                    DailyLog.sweepNow(ctx);
                     File[] files = DailyLog.files(ctx);
                     if (files.length == 0) {
                         ok = true;
@@ -74,7 +89,6 @@ public final class Uploader {
                         int up = 0, skipped = 0;
                         long totalBytes = 0;
                         for (File f : files) {
-                            if (up + skipped >= 5) break;  // 单次最多批量处理 5 个文件，保持节奏
                             String content = DailyLog.readFile(f);
                             if (totalBytes + content.length() > 1024 * 1024) break;  // 累积上限 ~1MB
                             // 直接上传到 WebDAV 地址所指的目录（不再额外拼子目录）
@@ -83,6 +97,7 @@ public final class Uploader {
                             String remote = client.fetchText(remotePath);
                             if (remote != null && remote.equals(content)) {
                                 skipped++;
+                                DailyLog.markUploaded(ctx, f.getName(), true);
                                 LogStore.diag(ctx, "⏭️ 与云端一致，跳过: " + f.getName());
                                 continue;
                             }
@@ -91,6 +106,7 @@ public final class Uploader {
 
                             int before = content.length();
                             client.uploadText(remotePath, content);
+                            DailyLog.markUploaded(ctx, f.getName(), true);
                             LogStore.diag(ctx, "✅ 上传成功: " + f.getName() + "（" + before + "字节 → " + client.getBaseUrl() + remotePath + "）");
                             up++;
                             totalBytes += content.length();
@@ -114,6 +130,6 @@ public final class Uploader {
                     @Override public void run() { if (cb != null) cb.onResult(fOk, fMsg); }
                 });
             }
-        }).start();
+        });
     }
 }

@@ -31,7 +31,7 @@
         android:theme="@style/AppTheme"
         android:windowOptOutEdgeToEdgeEnforcement="true"
         android:usesCleartextTraffic="true"
-        android:allowBackup="true">
+        android:allowBackup="false">
 
         <!-- 主界面 -->
         <activity
