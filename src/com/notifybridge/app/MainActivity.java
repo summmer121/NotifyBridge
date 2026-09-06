@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.graphics.Color;
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -21,6 +22,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
 import java.util.List;
 
 /**
@@ -1691,6 +1693,30 @@ public class MainActivity extends Activity {
 
     /** 🗄️ 存储管理面板。 */
     private void buildStoragePanel(LinearLayout p, LinearLayout.LayoutParams mp) {
+        TextView title = new TextView(this);
+        title.setText("📁 每日 MD 日志");
+        title.setTextSize(15);
+        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        title.setTextColor(Color.parseColor("#37474F"));
+        title.setPadding(dp(2), dp(4), dp(2), dp(2));
+        p.addView(title, mp);
+
+        final LinearLayout logList = new LinearLayout(this);
+        logList.setOrientation(LinearLayout.VERTICAL);
+        p.addView(logList, mp);
+
+        Button btnRefresh = new Button(this);
+        btnRefresh.setText("🔄 刷新列表");
+        btnRefresh.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                renderDailyFiles(logList);
+                showToast("已刷新", false);
+            }
+        });
+        p.addView(btnRefresh, mp);
+
+        renderDailyFiles(logList);
+
         Button btnClearCache = new Button(this);
         btnClearCache.setText("🗑️ 清空通知缓存");
         btnClearCache.setOnClickListener(new View.OnClickListener() {
@@ -1710,6 +1736,66 @@ public class MainActivity extends Activity {
             }
         });
         p.addView(btnClearLog, mp);
+    }
+
+    /** 在存储管理面板里列出 dailynote md 文件，点击可预览内容。 */
+    private void renderDailyFiles(final LinearLayout list) {
+        list.removeAllViews();
+        File[] files = DailyLog.files(MainActivity.this);
+        if (files.length == 0) {
+            TextView empty = new TextView(this);
+            empty.setText("暂无每日 MD 日志");
+            empty.setTextSize(14);
+            empty.setTextColor(Color.parseColor("#90A4AE"));
+            empty.setPadding(dp(2), dp(8), dp(2), dp(8));
+            list.addView(empty, matcher());
+            return;
+        }
+        final java.text.SimpleDateFormat day = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+        for (final File f : files) {
+            final String name = f.getName(); // e.g. dailynote20260906.md
+            String ymd = name.replace("dailynote", "").replace(".md", "");
+            String date = "----";
+            try { date = day.format(new java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).parse(ymd)); } catch (Exception ignored) {}
+            long kb = f.length() / 1024;
+            String size = kb > 0 ? kb + " KB" : (f.length() + " B");
+
+            TextView row = new TextView(this);
+            row.setText(date + "   " + size);
+            row.setTextSize(14);
+            row.setTextColor(Color.parseColor("#37474F"));
+            row.setPadding(dp(4), dp(10), dp(4), dp(10));
+            row.setBackground(ThemeManager.rounded(Color.WHITE, Color.parseColor("#F4F8FA"), 8, 1));
+            row.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+            row.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    previewDaily(f);
+                }
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, dp(4), 0, dp(4));
+            list.addView(row, lp);
+        }
+    }
+
+    /** 弹窗预览单个 md 文件内容。 */
+    private void previewDaily(File f) {
+        String content = DailyLog.readFile(f);
+        if (content.isEmpty()) content = "（空文件）";
+        ScrollView sv = new ScrollView(this);
+        TextView tv = new TextView(this);
+        tv.setText(content);
+        tv.setTextSize(14);
+        tv.setTextColor(Color.parseColor("#37474F"));
+        tv.setPadding(dp(16), dp(16), dp(16), dp(16));
+        tv.setTypeface(android.graphics.Typeface.MONOSPACE);
+        sv.addView(tv);
+        new AlertDialog.Builder(this)
+                .setTitle(f.getName())
+                .setView(sv)
+                .setPositiveButton("关闭", null)
+                .show();
     }
 
     /** 当前 AI 模式后缀（用于入口按钮显示）。 */
