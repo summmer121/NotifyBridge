@@ -78,11 +78,16 @@ public final class Charts {
     public static final class RingChartView extends View {
         private String[][] data;
         private int textColor = 0xFF37474F;
+        private int emptyColor = 0xFF3A3F4C;
 
         public RingChartView(Context c, String[][] data) {
             super(c); if (data != null) this.data = data;
         }
         public void setData(String[][] d) { if (d != null) this.data = d; invalidate(); }
+        /** 主题注入：中心文字颜色与空数据底环颜色。 */
+        public void setThemeColors(int text, int empty) {
+            this.textColor = text; this.emptyColor = empty; invalidate();
+        }
 
         @Override protected void onDraw(Canvas cv) {
             super.onDraw(cv);
@@ -113,7 +118,7 @@ public final class Charts {
                     start += sweep;
                 }
             } else {
-                p.setColor(0xFF3A3F4C);
+                p.setColor(emptyColor);
                 cv.drawArc(oval, 0, 360, false, p);
             }
 

@@ -1,7 +1,6 @@
 package com.notifybridge.app;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
@@ -11,26 +10,37 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
- * 轻量 UI 工具：深色毛玻璃风格的统一组件。
- * 所有颜色取自 ThemeManager。提供主/次玻璃按钮、玻璃卡片、玻璃输入框、统计胶囊等。
+ * 轻量 UI 工具：双主题统一组件库。
+ * 所有颜色取自 ThemeManager（按当前主题自动切换深色玻璃 / 浅色白卡观感）。
+ * 提供渐变主按钮、描边次按钮、卡片、输入框、统计胶囊等。
  */
 public final class UiKit {
 
     private UiKit() {}
 
-    /** 玻璃圆角矩形容器背景：半透深灰 + 顶部高光 + 细白描边。 */
+    /** 主题化卡片/胶囊背景：顶部高光 → 透明 → 卡片底，+ 主题描边。 */
     public static GradientDrawable glassBg(Context ctx, int radiusDp) {
         GradientDrawable g = new GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{ThemeManager.GLASS_GLARE, 0x00000000, ThemeManager.GLASS});
+                new int[]{ThemeManager.glare(ctx), 0x00000000, ThemeManager.color(ctx, ThemeManager.IDX_CARD)});
         g.setCornerRadius(px(ctx, radiusDp));
-        g.setStroke(1, ThemeManager.GLASS_BORDER);
+        g.setStroke(1, ThemeManager.border(ctx));
+        return g;
+
+    }
+
+    /** 半透明主题输入框/条目底色。 */
+    public static GradientDrawable inputBg(Context ctx, int radiusDp) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(ThemeManager.color(ctx, ThemeManager.IDX_INPUT_BG));
+        g.setCornerRadius(px(ctx, radiusDp));
+        g.setStroke(1, ThemeManager.border(ctx));
         return g;
     }
 
     /**
-     * 主操作玻璃按钮：冰蓝渐变 + 半透冰蓝底 + 冰蓝描边。
-     * @param emphasized true=强主按钮（冰蓝描边+淡冰蓝底），false=次级描边玻璃按钮
+     * 主操作按钮：主渐变实心胶囊 + 白字（贴近设计稿的渐变 CTA）。
+     * @param emphasized true=渐变实心主按钮，false=描边次按钮
      */
     public static Button glassButton(Context ctx, String text, boolean emphasized) {
         Button b = new Button(ctx);
@@ -41,33 +51,32 @@ public final class UiKit {
         b.setPadding(px(ctx, 14), 0, px(ctx, 14), 0);
         b.setMinHeight(px(ctx, 46));
         b.setAllCaps(false);
-        int accent = ThemeManager.color(ctx, ThemeManager.IDX_ACCENT);
         if (emphasized) {
             GradientDrawable g = new GradientDrawable(
                     GradientDrawable.Orientation.LEFT_RIGHT,
-                    new int[]{0x262F6FA8, 0x1A8BC7FF});
+                    new int[]{ThemeManager.color(ctx, ThemeManager.IDX_GRAD_S),
+                              ThemeManager.color(ctx, ThemeManager.IDX_GRAD_E)});
             g.setCornerRadius(px(ctx, 24));
-            g.setStroke(1, 0x4D8BC7FF);
             b.setBackground(g);
-            b.setTextColor(ThemeManager.ICE);
+            b.setTextColor(ThemeManager.color(ctx, ThemeManager.IDX_ON_ACCENT));
         } else {
             b.setBackground(glassBg(ctx, 24));
-            b.setTextColor(accent);
+            b.setTextColor(ThemeManager.accent(ctx));
         }
         return b;
     }
 
-    /** 兼容旧调用：主操作胶囊按钮（毛玻璃冰蓝）。 */
+    /** 兼容旧调用：主操作渐变胶囊按钮。 */
     public static Button primary(Context ctx, String text) {
         return glassButton(ctx, text, true);
     }
 
-    /** 兼容旧调用：次要描边玻璃按钮。 */
+    /** 兼容旧调用：次要描边按钮。 */
     public static Button ghost(Context ctx, String text) {
         return glassButton(ctx, text, false);
     }
 
-    /** 玻璃内容卡片；调用后放入纵向 padding 的视图即可。 */
+    /** 主题化内容卡片；调用后放入纵向 padding 的视图即可。 */
     public static LinearLayout card(Context ctx) {
         LinearLayout card = new LinearLayout(ctx);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -77,44 +86,40 @@ public final class UiKit {
         return card;
     }
 
-    /** 小节标题：白色粗体主标题 + 底部淡灰下划线。 */
+    /** 小节标题：主题主文本粗体。 */
     public static TextView sectionTitle(Context ctx, String text) {
         TextView tv = new TextView(ctx);
         tv.setText(text);
         tv.setTextSize(20);
         tv.setTypeface(Typeface.DEFAULT_BOLD);
-        tv.setTextColor(ThemeManager.TEXT);
+        tv.setTextColor(ThemeManager.text(ctx));
         tv.setPadding(px(ctx, 2), 0, px(ctx, 2), px(ctx, 8));
         return tv;
     }
 
-    /** 玻璃输入框：半透深底、白字、浅灰 hint、细白边框。 */
+    /** 主题化输入框：主题底色、主题文字色、次级 hint。 */
     public static EditText glassInput(Context ctx) {
         EditText et = new EditText(ctx);
-        et.setTextColor(ThemeManager.TEXT);
-        et.setHintTextColor(ThemeManager.SECONDARY);
+        et.setTextColor(ThemeManager.text(ctx));
+        et.setHintTextColor(ThemeManager.secondary(ctx));
         et.setTextSize(14);
         et.setPadding(px(ctx, 12), px(ctx, 10), px(ctx, 12), px(ctx, 10));
-        GradientDrawable g = new GradientDrawable();
-        g.setColor(0x14303440);
-        g.setCornerRadius(px(ctx, 14));
-        g.setStroke(1, ThemeManager.GLASS_BORDER);
-        et.setBackground(g);
+        et.setBackground(inputBg(ctx, 14));
         return et;
     }
 
-    /** 统计胶囊：半透深底 + 细白边 + 强调色文字。 */
+    /** 统计胶囊：主题胶囊底 + 强调色文字。 */
     public static TextView glassTag(Context ctx, String text) {
         TextView tv = new TextView(ctx);
         tv.setText(text);
         tv.setTextSize(13);
-        tv.setTextColor(ThemeManager.ICE);
+        tv.setTextColor(ThemeManager.accent(ctx));
         tv.setGravity(Gravity.CENTER);
         tv.setPadding(px(ctx, 10), px(ctx, 5), px(ctx, 10), px(ctx, 5));
         GradientDrawable g = new GradientDrawable();
-        g.setColor(0x1A2A2F3E);
+        g.setColor(ThemeManager.color(ctx, ThemeManager.IDX_CHIP_BG));
         g.setCornerRadius(px(ctx, 16));
-        g.setStroke(1, 0x148BC7FF);
+        g.setStroke(1, ThemeManager.withAlpha(ThemeManager.accent(ctx), 0x26));
         tv.setBackground(g);
         return tv;
     }

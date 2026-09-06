@@ -34,7 +34,7 @@ public class AiConfigActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(16));
-        root.setBackgroundColor(Color.parseColor("#FAFAFA"));
+        root.setBackgroundColor(ThemeManager.bg(this));
         scroll.addView(root);
         LinearLayout.LayoutParams mp = m();
 
@@ -42,7 +42,7 @@ public class AiConfigActivity extends Activity {
         title.setText("🤖 AI 模型配置");
         title.setTextSize(19);
         title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        title.setTextColor(Color.parseColor("#37474F"));
+        title.setTextColor(ThemeManager.text(this));
         root.addView(title, mp);
 
         // 模式选择
@@ -50,7 +50,7 @@ public class AiConfigActivity extends Activity {
         lblMode.setText("分析模式");
         lblMode.setTextSize(15);
         lblMode.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lblMode.setTextColor(Color.parseColor("#5A9BD5"));
+        lblMode.setTextColor(ThemeManager.accent(this));
         lblMode.setPadding(dp(4), dp(16), dp(4), dp(6));
         root.addView(lblMode, mp);
 
@@ -58,8 +58,10 @@ public class AiConfigActivity extends Activity {
         rgMode.setOrientation(LinearLayout.VERTICAL);
         RadioButton rbDirect = new RadioButton(this);
         rbDirect.setId(2); rbDirect.setText("OpenAI 兼容直连（DeepSeek/OpenRouter/Ollama等）");
+        rbDirect.setTextColor(ThemeManager.text(this));
         RadioButton rbRelay = new RadioButton(this);
         rbRelay.setId(3); rbRelay.setText("服务器 / Hermes 中转");
+        rbRelay.setTextColor(ThemeManager.text(this));
         rgMode.addView(rbDirect); rgMode.addView(rbRelay);
         String curMode = Config.get(this, Config.KEY_AI_MODE, "direct");
         rbDirect.setChecked(!"relay".equals(curMode));
@@ -71,7 +73,7 @@ public class AiConfigActivity extends Activity {
         lblDirect.setText("OpenAI 兼容接口");
         lblDirect.setTextSize(15);
         lblDirect.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lblDirect.setTextColor(Color.parseColor("#5A9BD5"));
+        lblDirect.setTextColor(ThemeManager.accent(this));
         lblDirect.setPadding(dp(4), dp(16), dp(4), dp(6));
         root.addView(lblDirect, mp);
 
@@ -93,7 +95,7 @@ public class AiConfigActivity extends Activity {
         lblRelay.setText("服务器 / Hermes 中转");
         lblRelay.setTextSize(15);
         lblRelay.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lblRelay.setTextColor(Color.parseColor("#5A9BD5"));
+        lblRelay.setTextColor(ThemeManager.accent(this));
         lblRelay.setPadding(dp(4), dp(16), dp(4), dp(6));
         root.addView(lblRelay, mp);
 
@@ -106,7 +108,7 @@ public class AiConfigActivity extends Activity {
         lblPrompt.setText("📝 分析提示词（所有分析都用这个）");
         lblPrompt.setTextSize(15);
         lblPrompt.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        lblPrompt.setTextColor(Color.parseColor("#5A9BD5"));
+        lblPrompt.setTextColor(ThemeManager.accent(this));
         lblPrompt.setPadding(dp(4), dp(16), dp(4), dp(6));
         root.addView(lblPrompt, mp);
 
@@ -116,21 +118,20 @@ public class AiConfigActivity extends Activity {
         etPrompt.setMinLines(10);
         etPrompt.setTextSize(13);
         etPrompt.setPadding(dp(8), dp(8), dp(8), dp(8));
+        etPrompt.setTextColor(ThemeManager.text(this));
+        etPrompt.setHintTextColor(ThemeManager.secondary(this));
+        etPrompt.setBackground(UiKit.inputBg(this, 14));
         root.addView(etPrompt, mp);
 
         // 测试按钮
-        Button btnTest = new Button(this);
-        btnTest.setText("🔗 测试 AI 连接");
+        Button btnTest = UiKit.ghost(this, "🔗 测试 AI 连接");
         btnTest.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { saveConfig(); testAi(); }
         });
         root.addView(btnTest, mp);
 
         // 保存
-        Button btnSave = new Button(this);
-        btnSave.setText("💾 保存配置");
-        btnSave.setTextColor(Color.WHITE);
-        btnSave.setBackgroundColor(Color.parseColor("#1976D2"));
+        Button btnSave = UiKit.primary(this, "💾 保存配置");
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { saveConfig(); showToast("已保存", false); finish(); }
         });
@@ -141,11 +142,10 @@ public class AiConfigActivity extends Activity {
     }
 
     private EditText input(String hint, String hintLine2) {
-        EditText et = new EditText(this);
+        EditText et = UiKit.glassInput(this);
         et.setHint(hint + (hintLine2 == null ? "" : "（" + hintLine2 + "）"));
         et.setSingleLine(false);
         et.setMinLines(1);
-        et.setPadding(dp(8), dp(8), dp(8), dp(8));
         return et;
     }
 
@@ -190,10 +190,13 @@ public class AiConfigActivity extends Activity {
             android.view.Window w = getWindow();
             final int sdk = android.os.Build.VERSION.SDK_INT;
             int flags = 0;
-            if (sdk >= 23) flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            if (sdk >= 26) flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-            try { w.setStatusBarColor(0xFF7CB9E8); } catch (Throwable ignore) {}
-            try { w.setNavigationBarColor(0xFFFFFDF7); } catch (Throwable ignore) {}
+            if (sdk >= 23 && ThemeManager.isLight(this))
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (sdk >= 26 && ThemeManager.isLight(this))
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            int bg = ThemeManager.bg(this);
+            try { w.setStatusBarColor(bg); } catch (Throwable ignore) {}
+            try { w.setNavigationBarColor(bg); } catch (Throwable ignore) {}
             final android.view.View decor = w.getDecorView();
             decor.setSystemUiVisibility(flags);
             if (sdk >= 30) {
@@ -234,8 +237,13 @@ public class AiConfigActivity extends Activity {
                 v.setText(msg);
                 v.setTextSize(14);
                 v.setPadding(dp(20), dp(12), dp(20), dp(12));
+                boolean light = ThemeManager.isLight(AiConfigActivity.this);
                 v.setTextColor(android.graphics.Color.parseColor(err ? "#C0392B" : "#2E7D32"));
-                v.setBackgroundColor(android.graphics.Color.parseColor(err ? "#FDEDEC" : "#F1F8E9"));
+                android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+                g.setColor(light ? 0xFFFFFFFF : 0xE8141C31);
+                g.setCornerRadius(dp(16));
+                g.setStroke(1, ThemeManager.border(AiConfigActivity.this));
+                v.setBackground(g);
                 v.setGravity(Gravity.CENTER);
                 t.setView(v);
                 t.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, 0, dp(60));

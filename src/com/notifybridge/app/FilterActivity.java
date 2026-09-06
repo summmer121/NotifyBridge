@@ -76,7 +76,7 @@ public class FilterActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(16), dp(12), dp(16), dp(16));
-        root.setBackgroundColor(ThemeManager.BG);
+        root.setBackgroundColor(ThemeManager.bg(this));
         topScroll.addView(root);
         LinearLayout.LayoutParams mp = m();
         LinearLayout.LayoutParams fill = new LinearLayout.LayoutParams(
@@ -85,7 +85,7 @@ public class FilterActivity extends Activity {
         // 外层根：垂直填满屏幕
         LinearLayout pageRoot = new LinearLayout(this);
         pageRoot.setOrientation(LinearLayout.VERTICAL);
-        pageRoot.setBackgroundColor(ThemeManager.BG);
+        pageRoot.setBackgroundColor(ThemeManager.bg(this));
         // 应用列表是主角：占满剩余高度；顶部设置区用固定紧凑高度（内部可滚），
         // 避免 weight 与 WRAP 混算导致的高层错乱/遮挡
         LinearLayout.LayoutParams topLp = new LinearLayout.LayoutParams(
@@ -97,7 +97,7 @@ public class FilterActivity extends Activity {
         title.setText("🔍 通知过滤设置");
         title.setTextSize(19);
         title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        title.setTextColor(Color.parseColor("#37474F"));
+        title.setTextColor(ThemeManager.text(this));
         title.setPadding(dp(16), dp(12), dp(16), dp(4));
         // 标题固定放页面顶部（不随设置区滚动），后续在组装处加入 pageRoot
 
@@ -115,9 +115,11 @@ public class FilterActivity extends Activity {
         RadioButton rbBlack = new RadioButton(this);
         rbBlack.setId(1);
         rbBlack.setText("黑名单（屏蔽所选）");
+        rbBlack.setTextColor(ThemeManager.text(this));
         RadioButton rbWhite = new RadioButton(this);
         rbWhite.setId(2);
         rbWhite.setText("白名单（仅放行所选）");
+        rbWhite.setTextColor(ThemeManager.text(this));
         rg.addView(rbBlack);
         rg.addView(rbWhite);
         int curMode = Config.getInt(this, Config.KEY_FILTER_MODE, Config.FILTER_MODE_BLACKLIST);
@@ -130,7 +132,7 @@ public class FilterActivity extends Activity {
 
         android.widget.ScrollView appScroll = new android.widget.ScrollView(this);
         appScroll.setSmoothScrollingEnabled(true);
-        appScroll.setBackgroundColor(ThemeManager.GLASS);
+        appScroll.setBackgroundColor(ThemeManager.color(this, ThemeManager.IDX_INPUT_BG));
         appList = new LinearLayout(this);
         appList.setOrientation(LinearLayout.VERTICAL);
         appList.setPadding(dp(4), dp(4), dp(4), dp(8));
@@ -157,7 +159,7 @@ public class FilterActivity extends Activity {
             cb.setText(a.label);
             cb.setTag(a.pkg);
             cb.setTextSize(13);
-            cb.setTextColor(Color.parseColor("#37474F"));
+            cb.setTextColor(ThemeManager.text(this));
             cb.setPadding(0, dp(2), 0, dp(2));   // 压缩行高，一屏显示更多 App
             appList.addView(cb, new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -173,10 +175,9 @@ public class FilterActivity extends Activity {
         section(root, "🏷️ 关键词优先级", mp);
         LinearLayout kwRow = new LinearLayout(this);
         kwRow.setOrientation(LinearLayout.HORIZONTAL);
-        etKeyword = new EditText(this);
+        etKeyword = UiKit.glassInput(this);
         etKeyword.setHint("输入关键词");
-        Button btnAdd = new Button(this);
-        btnAdd.setText("添加");
+        Button btnAdd = UiKit.ghost(this, "添加");
         btnAdd.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { addKeyword(etKeyword.getText().toString().trim()); }
         });
@@ -190,10 +191,7 @@ public class FilterActivity extends Activity {
         renderKeywords();
 
         // === 保存 ===
-        Button btnSave = new Button(this);
-        btnSave.setText("💾 保存过滤设置");
-        btnSave.setTextColor(Color.WHITE);
-        btnSave.setBackgroundColor(Color.parseColor("#1976D2"));
+        Button btnSave = UiKit.primary(this, "💾 保存过滤设置");
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 int mode = rg.getCheckedRadioButtonId() == 2
@@ -210,7 +208,9 @@ public class FilterActivity extends Activity {
         pageRoot.addView(topScroll, topLp);
 
         // 搜索框固定行：置于顶部设置区与可滚动应用列表之间，不随应用列表滚动
-        etSearch.setBackgroundColor(ThemeManager.GLASS);
+        etSearch.setBackground(UiKit.inputBg(this, 14));
+        etSearch.setTextColor(ThemeManager.text(this));
+        etSearch.setHintTextColor(ThemeManager.secondary(this));
         LinearLayout.LayoutParams searchLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         searchLp.setMargins(dp(8), dp(4), dp(8), dp(2));
@@ -234,7 +234,7 @@ public class FilterActivity extends Activity {
         tv.setText(t);
         tv.setTextSize(16);
         tv.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        tv.setTextColor(Color.parseColor("#5A9BD5"));
+        tv.setTextColor(ThemeManager.accent(this));
         tv.setPadding(dp(4), dp(20), dp(4), dp(6));
         root.addView(tv, mp);
     }
@@ -247,7 +247,7 @@ public class FilterActivity extends Activity {
         TextView lbl = new TextView(this);
         lbl.setText(label);
         lbl.setTextSize(15);
-        lbl.setTextColor(Color.parseColor("#37474F"));
+        lbl.setTextColor(ThemeManager.text(this));
         Switch sw = new Switch(this);
         sw.setChecked(Config.getBool(this, key, def));
         sw.setOnCheckedChangeListener((v, isOn) -> Config.putBool(this, key, isOn));
@@ -260,19 +260,19 @@ public class FilterActivity extends Activity {
         kwFlow.removeAllViews();
         String kw = Config.get(this, Config.KEY_KEYWORDS, "");
         if (kw.isEmpty()) {
-            addKwText("（暂无自定义关键词，可在下方添加）", "#90A4AE");
+            addKwText("（暂无自定义关键词，可在下方添加）", ThemeManager.muted(this));
         } else {
             for (String k : kw.split(",")) {
-                if (!k.trim().isEmpty()) addKwText(k.trim(), "#5A9BD5");
+                if (!k.trim().isEmpty()) addKwText(k.trim(), ThemeManager.accent(this));
             }
         }
     }
 
-    private void addKwText(String text, String color) {
+    private void addKwText(String text, int color) {
         TextView tv = new TextView(this);
         tv.setText("🏷 " + text);
         tv.setTextSize(14);
-        tv.setTextColor(Color.parseColor(color));
+        tv.setTextColor(color);
         tv.setPadding(dp(8), dp(4), dp(8), dp(4));
         kwFlow.addView(tv, m());
     }
@@ -355,10 +355,13 @@ public class FilterActivity extends Activity {
             android.view.Window w = getWindow();
             final int sdk = android.os.Build.VERSION.SDK_INT;
             int flags = 0;
-            if (sdk >= 23) flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            if (sdk >= 26) flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-            try { w.setStatusBarColor(0xFF7CB9E8); } catch (Throwable ignore) {}
-            try { w.setNavigationBarColor(0xFFFFFDF7); } catch (Throwable ignore) {}
+            if (sdk >= 23 && ThemeManager.isLight(this))
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (sdk >= 26 && ThemeManager.isLight(this))
+                flags |= android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+            int bg = ThemeManager.bg(this);
+            try { w.setStatusBarColor(bg); } catch (Throwable ignore) {}
+            try { w.setNavigationBarColor(bg); } catch (Throwable ignore) {}
             final android.view.View decor = w.getDecorView();
             decor.setSystemUiVisibility(flags);
             if (sdk >= 30) {
@@ -400,7 +403,12 @@ public class FilterActivity extends Activity {
                 v.setTextSize(14);
                 v.setPadding(dp(20), dp(12), dp(20), dp(12));
                 v.setTextColor(android.graphics.Color.parseColor(err ? "#C0392B" : "#2E7D32"));
-                v.setBackgroundColor(android.graphics.Color.parseColor(err ? "#FDEDEC" : "#F1F8E9"));
+                boolean light = ThemeManager.isLight(FilterActivity.this);
+                android.graphics.drawable.GradientDrawable tg = new android.graphics.drawable.GradientDrawable();
+                tg.setColor(light ? 0xFFFFFFFF : 0xE8141C31);
+                tg.setCornerRadius(dp(16));
+                tg.setStroke(1, ThemeManager.border(FilterActivity.this));
+                v.setBackground(tg);
                 v.setGravity(Gravity.CENTER);
                 t.setView(v);
                 t.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM, 0, dp(60));
