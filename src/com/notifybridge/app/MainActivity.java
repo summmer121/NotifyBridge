@@ -901,15 +901,6 @@ public class MainActivity extends Activity {
         actionRow.addView(btnHistory, new LinearLayout.LayoutParams(0, -2, 1f));
         root.addView(actionRow, mp);
 
-        // 统计三列
-        LinearLayout statRow = new LinearLayout(this);
-        statRow.setOrientation(LinearLayout.HORIZONTAL);
-        statRow.setPadding(dp(4), dp(16), dp(4), dp(4));
-        tvAiWork = statCell(statRow, "📊 工作");
-        tvAiTodo = statCell(statRow, "✅ 待办");
-        tvAiUrgent = statCell(statRow, "🔴 紧急");
-        root.addView(statRow, mp);
-
         // 摘要卡
         root.addView(cardTitle("📋 今日智能摘要", mp), mp);
         LinearLayout digestCard = UiKit.card(this);
@@ -942,6 +933,15 @@ public class MainActivity extends Activity {
         aiSuggestList.setOrientation(LinearLayout.VERTICAL);
         suggCard.addView(aiSuggestList, mp);
         root.addView(suggCard, mp);
+
+        // 分项统计（置于摘要与待办之后）
+        LinearLayout statRow = new LinearLayout(this);
+        statRow.setOrientation(LinearLayout.HORIZONTAL);
+        statRow.setPadding(dp(4), dp(16), dp(4), dp(4));
+        tvAiWork = statCell(statRow, "📊 工作");
+        tvAiTodo = statCell(statRow, "✅ 待办");
+        tvAiUrgent = statCell(statRow, "🔴 紧急");
+        root.addView(statRow, mp);
 
         root.addView(cardTitle("📊 通知计数", mp), mp);
         LinearLayout countCard = UiKit.card(this);
