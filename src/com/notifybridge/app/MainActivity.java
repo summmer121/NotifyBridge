@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
     private android.widget.FrameLayout contentContainer;
     private LinearLayout bottomBar;
     private TextView[] bottomTabs = new TextView[4];
+    private TextView tvBarSub;
     private android.view.View[] tabIndicators = new android.view.View[4];
     // AI 页面引用
     private TextView tvAiCount, tvAiDigest, tvAiWork, tvAiTodo, tvAiUrgent, tvAiGenTime;
@@ -171,22 +172,30 @@ public class MainActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
 
-        // 顶部导航栏（v2：返回 + 标题 + 设置）
+        // 顶部品牌栏：渐变底 + 标题 + 小副标题
         LinearLayout topBar = new LinearLayout(this);
-        topBar.setOrientation(LinearLayout.HORIZONTAL);
-        topBar.setGravity(Gravity.CENTER_VERTICAL);
-        topBar.setBackgroundColor(ThemeManager.color(this, ThemeManager.CARD));
+        topBar.setOrientation(LinearLayout.VERTICAL);
+        topBar.setPadding(dp(18), dp(14), dp(18), dp(14));
+        android.graphics.drawable.GradientDrawable topGrad = new android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{ThemeManager.color(this, ThemeManager.GRAD_S),
+                        ThemeManager.color(this, ThemeManager.GRAD_E)});
+        topGrad.setCornerRadii(new float[]{0, 0, dp(20), dp(20), 0, 0, dp(20), dp(20)});
+        topBar.setBackground(topGrad);
         TextView tvBarTitle = new TextView(this);
         tvBarTitle.setText("NotifyBridge");
-        tvBarTitle.setTextSize(18);
+        tvBarTitle.setTextSize(21);
         tvBarTitle.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        tvBarTitle.setTextColor(ThemeManager.color(this, ThemeManager.TEXT));
-        tvBarTitle.setGravity(Gravity.LEFT);
-        tvBarTitle.setPadding(dp(16), dp(4), dp(16), dp(4));
-        tvBarTitle.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        tvBarTitle.setTextColor(Color.WHITE);
+        tvBarSub = new TextView(this);
+        tvBarSub.setText("通知察觉 · 每日纪要 · AI 智能助手");
+        tvBarSub.setTextSize(12);
+        tvBarSub.setTextColor(0xB3FFFFFF);
+        tvBarSub.setPadding(0, dp(2), 0, 0);
         topBar.addView(tvBarTitle);
-        root.addView(topBar);
+        topBar.addView(tvBarSub);
+        root.addView(topBar, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         // 内容容器（承载 4 个主页面）
         contentContainer = new android.widget.FrameLayout(this);
@@ -423,40 +432,40 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(ThemeManager.color(this, ThemeManager.BG));
         LinearLayout.LayoutParams mp = matcher();
 
-        TextView title = new TextView(this);
-        title.setText("📄 通知日志");
-        title.setTextSize(17);
-        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        title.setTextColor(Color.parseColor("#37474F"));
+        TextView title = UiKit.sectionTitle(this, "📄 通知日志");
         root.addView(title, mp);
 
         tvLogHint = new TextView(this);
         tvLogHint.setTextSize(12);
-        tvLogHint.setTextColor(Color.parseColor("#90A4AE"));
-        tvLogHint.setPadding(0, dp(4), 0, dp(8));
+        tvLogHint.setTextColor(ThemeManager.color(this, ThemeManager.SECONDARY));
+        tvLogHint.setPadding(dp(4), 0, dp(4), dp(10));
         root.addView(tvLogHint, mp);
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        Button btnRefresh = new Button(this);
-        btnRefresh.setText("🔄 刷新");
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        Button btnRefresh = UiKit.primary(this, "🔄 刷新");
         btnRefresh.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { refreshLog(); }
         });
-        Button btnClearLog = new Button(this);
-        btnClearLog.setText("🗑️ 清空日志");
+        Button btnClearLog = UiKit.ghost(this, "🗑️ 清空");
         btnClearLog.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 LogStore.clear(MainActivity.this);
                 refreshLog();
             }
         });
-        row.addView(btnRefresh, new LinearLayout.LayoutParams(0, -2, 1f));
-        row.addView(btnClearLog, new LinearLayout.LayoutParams(0, -2, 1f));
+        LinearLayout.LayoutParams lp1 = new LinearLayout.LayoutParams(0, -2, 1f);
+        LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(0, -2, 1f);
+        lp1.setMargins(0, 0, dp(8), 0);
+        row.addView(btnRefresh, lp1);
+        row.addView(btnClearLog, lp2);
         root.addView(row, mp);
 
         lvLog = new ListView(this);
         lvLog.setDivider(null);
+        lvLog.setPadding(dp(4), dp(6), dp(4), dp(4));
+        lvLog.setClipToPadding(false);
         root.addView(lvLog, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
@@ -624,8 +633,7 @@ public class MainActivity extends Activity {
         tvStatus.setPadding(0, 0, 0, dp(12));
         root.addView(tvStatus, mp);
 
-        Button btnListener = new Button(this);
-        btnListener.setText("去开启『通知使用权』");
+        Button btnListener = UiKit.primary(this, "🔔 开启通知使用权");
         btnListener.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { openNotificationAccess(); }
         });
@@ -656,17 +664,18 @@ public class MainActivity extends Activity {
 
         LinearLayout row1 = new LinearLayout(this);
         row1.setOrientation(LinearLayout.HORIZONTAL);
-        Button btnTest = new Button(this);
-        btnTest.setText("测试连接");
+        row1.setGravity(Gravity.CENTER_VERTICAL);
+        Button btnTest = UiKit.ghost(this, "测试连接");
         btnTest.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { testConnection(); }
         });
-        Button btnSave = new Button(this);
-        btnSave.setText("保存配置");
+        Button btnSave = UiKit.primary(this, "保存配置");
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { saveConfig(); }
         });
-        row1.addView(btnTest, new LinearLayout.LayoutParams(0, -2, 1f));
+        LinearLayout.LayoutParams lpTest = new LinearLayout.LayoutParams(0, -2, 1f);
+        lpTest.setMargins(0, 0, dp(8), 0);
+        row1.addView(btnTest, lpTest);
         row1.addView(btnSave, new LinearLayout.LayoutParams(0, -2, 1f));
         root.addView(row1, mp);
 
@@ -699,24 +708,24 @@ public class MainActivity extends Activity {
 
         LinearLayout row3 = new LinearLayout(this);
         row3.setOrientation(LinearLayout.HORIZONTAL);
-        Button btnSyncNow = new Button(this);
-        btnSyncNow.setText("立即同步");
+        row3.setGravity(Gravity.CENTER_VERTICAL);
+        Button btnSyncNow = UiKit.primary(this, "⚡ 立即同步");
         btnSyncNow.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { syncNow(); }
         });
-        Button btnFilter = new Button(this);
-        btnFilter.setText("通知过滤设置");
+        Button btnFilter = UiKit.ghost(this, "🔍 通知过滤");
         btnFilter.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 startActivity(new Intent(MainActivity.this, FilterActivity.class));
             }
         });
-        row3.addView(btnSyncNow, new LinearLayout.LayoutParams(0, -2, 1f));
+        LinearLayout.LayoutParams lpSync = new LinearLayout.LayoutParams(0, -2, 1f);
+        lpSync.setMargins(0, 0, dp(8), 0);
+        row3.addView(btnSyncNow, lpSync);
         row3.addView(btnFilter, new LinearLayout.LayoutParams(0, -2, 1f));
         root.addView(row3, mp);
 
-        Button btnClear = new Button(this);
-        btnClear.setText("清空缓存");
+        Button btnClear = UiKit.ghost(this, "🗑️ 清空缓存");
         btnClear.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 int n = NotificationCache.clearAll(MainActivity.this);
@@ -827,21 +836,18 @@ public class MainActivity extends Activity {
         // 手动生成 + 查看历史：一行两个按钮（左/右）
         LinearLayout actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
-        btnManualGen = new Button(this);
-        btnManualGen.setText("🤖 手动生成");
-        btnManualGen.setTextColor(Color.WHITE);
-        btnManualGen.setBackgroundColor(Color.parseColor("#1976D2"));
+        actionRow.setGravity(Gravity.CENTER_VERTICAL);
+        btnManualGen = UiKit.primary(this, "🤖 手动生成");
         btnManualGen.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 generateReport(ReportStore.dateKeyNow(), true);
             }
         });
-        actionRow.addView(btnManualGen, new LinearLayout.LayoutParams(0, -2, 1f));
+        LinearLayout.LayoutParams lpGen = new LinearLayout.LayoutParams(0, -2, 1f);
+        lpGen.setMargins(0, 0, dp(8), 0);
+        actionRow.addView(btnManualGen, lpGen);
 
-        Button btnHistory = new Button(this);
-        btnHistory.setText("📅 查看历史");
-        btnHistory.setTextColor(Color.parseColor("#1565C0"));
-        btnHistory.setBackgroundColor(Color.parseColor("#E3F2FD"));
+        Button btnHistory = UiKit.ghost(this, "📅 查看历史");
         btnHistory.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { showHistoryDialog(); }
         });
@@ -859,37 +865,45 @@ public class MainActivity extends Activity {
 
         // 摘要卡
         root.addView(cardTitle("📋 今日智能摘要", mp), mp);
+        LinearLayout digestCard = UiKit.card(this);
         tvAiGenTime = new TextView(this);
         tvAiGenTime.setTextSize(12);
-        tvAiGenTime.setTextColor(Color.parseColor("#1565C0"));
+        tvAiGenTime.setTextColor(ThemeManager.color(this, ThemeManager.ACCENT));
         tvAiGenTime.setTypeface(null, android.graphics.Typeface.BOLD);
-        tvAiGenTime.setPadding(dp(12), dp(2), dp(12), dp(6));
-        root.addView(tvAiGenTime, mp);
+        tvAiGenTime.setPadding(0, 0, 0, dp(6));
+        digestCard.addView(tvAiGenTime, mp);
 
         tvAiDigest = new TextView(this);
         tvAiDigest.setTextSize(14);
-        tvAiDigest.setTextColor(Color.parseColor("#37474F"));
-        tvAiDigest.setPadding(dp(12), dp(4), dp(12), dp(4));
-        root.addView(tvAiDigest, mp);
+        tvAiDigest.setTextColor(ThemeManager.color(this, ThemeManager.TEXT));
+        tvAiDigest.setPadding(0, dp(2), 0, dp(2));
+        digestCard.addView(tvAiDigest, mp);
+        root.addView(digestCard, mp);
 
         // 待办清单
         root.addView(cardTitle("✅ 今日待办事项", mp), mp);
+        LinearLayout todoCard = UiKit.card(this);
         aiTodoList = new LinearLayout(this);
         aiTodoList.setOrientation(LinearLayout.VERTICAL);
-        root.addView(aiTodoList, mp);
+        todoCard.addView(aiTodoList, mp);
+        root.addView(todoCard, mp);
 
         // 智能建议
         root.addView(cardTitle("💡 AI 智能建议", mp), mp);
+        LinearLayout suggCard = UiKit.card(this);
         aiSuggestList = new LinearLayout(this);
         aiSuggestList.setOrientation(LinearLayout.VERTICAL);
-        root.addView(aiSuggestList, mp);
+        suggCard.addView(aiSuggestList, mp);
+        root.addView(suggCard, mp);
 
         root.addView(cardTitle("📊 通知计数", mp), mp);
+        LinearLayout countCard = UiKit.card(this);
         tvAiCount = new TextView(this);
         tvAiCount.setTextSize(14);
-        tvAiCount.setTextColor(Color.parseColor("#37474F"));
-        tvAiCount.setPadding(dp(12), dp(4), dp(12), dp(4));
-        root.addView(tvAiCount, mp);
+        tvAiCount.setTextColor(ThemeManager.color(this, ThemeManager.TEXT));
+        tvAiCount.setPadding(0, dp(2), 0, dp(2));
+        countCard.addView(tvAiCount, mp);
+        root.addView(countCard, mp);
 
         return scroll;
     }
@@ -1192,28 +1206,30 @@ public class MainActivity extends Activity {
         tvKanbanContent = new TextView(this);
         tvKanbanContent.setTextSize(14);
         tvKanbanContent.setTextColor(Color.parseColor("#37474F"));
-        tvKanbanContent.setBackgroundColor(Color.parseColor("#FFFFFF"));
+        tvKanbanContent.setBackground(ThemeManager.rounded(
+                ThemeManager.color(this, ThemeManager.CARD), ThemeManager.CARD_RADIUS));
         tvKanbanContent.setPadding(dp(12), dp(8), dp(12), dp(8));
         root.addView(tvKanbanContent, mp);
 
         // 生成 / 重新生成按钮（仅用户主动点击才生成）
-        Button btnGen = new Button(this);
-        btnGen.setText("🤖 生成 / 重新生成纪要");
-        btnGen.setTextColor(Color.WHITE);
-        btnGen.setBackgroundColor(Color.parseColor("#1976D2"));
+        Button btnGen = UiKit.primary(this, "🤖 生成 / 重新生成纪要");
         btnGen.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 generateReport(ReportStore.dateKeyNow(), true);
             }
         });
-        root.addView(btnGen, mp);
+        LinearLayout.LayoutParams lpGenK = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpGenK.setMargins(0, dp(6), 0, dp(6));
+        root.addView(btnGen, lpGenK);
 
         // 日志（放在纪要下方）
         root.addView(cardTitle("📄 通知日志", mp), mp);
         tvKanbanLog = new TextView(this);
         tvKanbanLog.setTextSize(12);
         tvKanbanLog.setTextColor(Color.parseColor("#90A4AE"));
-        tvKanbanLog.setBackgroundColor(Color.parseColor("#FFFFFF"));
+        tvKanbanLog.setBackground(ThemeManager.rounded(
+                ThemeManager.color(this, ThemeManager.CARD), ThemeManager.CARD_RADIUS));
         tvKanbanLog.setPadding(dp(10), dp(8), dp(10), dp(8));
         root.addView(tvKanbanLog, mp);
 
@@ -1369,12 +1385,7 @@ public class MainActivity extends Activity {
         scroll.addView(root);
         LinearLayout.LayoutParams mp = matcher();
 
-        TextView user = new TextView(this);
-        user.setText("👤 我的");
-        user.setTextSize(18);
-        user.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        user.setTextColor(Color.parseColor("#37474F"));
-        user.setPadding(dp(4), dp(8), dp(4), dp(4));
+        TextView user = UiKit.sectionTitle(this, "👤 我的");
         root.addView(user, mp);
 
         // ---- 二级菜单（竖栏，点击展开/收起对应面板）----
@@ -1388,16 +1399,16 @@ public class MainActivity extends Activity {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setBackground(ThemeManager.rounded(Color.WHITE, Color.WHITE, 10, 0));
+            ThemeManager.styleCard(row, this, ThemeManager.CARD_RADIUS);
             row.setPadding(dp(12), dp(12), dp(12), dp(12));
             TextView lbl = new TextView(this);
             lbl.setText(menuNames[i]);
             lbl.setTextSize(15);
-            lbl.setTextColor(Color.parseColor("#37474F"));
+            lbl.setTextColor(ThemeManager.color(this, ThemeManager.TEXT));
             android.widget.TextView arrow = new android.widget.TextView(this);
             arrow.setText("\u203A");   // › 向右折叠
             arrow.setTextSize(20);
-            arrow.setTextColor(Color.parseColor("#90A4AE"));
+            arrow.setTextColor(ThemeManager.color(this, ThemeManager.SECONDARY));
             arrow.setGravity(Gravity.CENTER_VERTICAL);
             menuArrows.add(arrow);   // 记录箭头，切换时改方向
             row.addView(lbl, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -1409,7 +1420,10 @@ public class MainActivity extends Activity {
             panels[i].setPadding(dp(6), dp(4), dp(6), dp(8));
             final int fi = i;
             row.setOnClickListener(v -> switchSettingsPanel(fi, panels));
-            root.addView(row, mp);
+            LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rp.setMargins(0, 0, 0, dp(8));
+            root.addView(row, rp);
             root.addView(panels[i], mp);
         }
         // 填充各面板内容
@@ -1528,22 +1542,24 @@ public class MainActivity extends Activity {
         aiPrompt.setPadding(dp(6), dp(6), dp(6), dp(6));
         p.addView(aiPrompt, mp);
 
-        Button btnAiSave = new Button(this);
-        btnAiSave.setText("💾 保存 AI 配置并测试");
-        btnAiSave.setBackgroundColor(Color.parseColor("#1976D2"));
-        btnAiSave.setTextColor(Color.WHITE);
+        Button btnAiSave = UiKit.primary(this, "💾 保存 AI 配置并测试");
         btnAiSave.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { saveAiConfigFromSettings(); }
         });
-        p.addView(btnAiSave, mp);
-        Button btnAiDetail = new Button(this);
-        btnAiDetail.setText("⚙️ 高级 AI 配置");
+        LinearLayout.LayoutParams lpSave = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpSave.setMargins(0, dp(6), 0, dp(4));
+        p.addView(btnAiSave, lpSave);
+        Button btnAiDetail = UiKit.ghost(this, "⚙️ 高级 AI 配置");
         btnAiDetail.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 startActivity(new Intent(MainActivity.this, AiConfigActivity.class));
             }
         });
-        p.addView(btnAiDetail, mp);
+        LinearLayout.LayoutParams lpDetail = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpDetail.setMargins(0, dp(4), 0, 0);
+        p.addView(btnAiDetail, lpDetail);
     }
 
     /** ☁️ 同步设置面板（WebDAV 表单 + 自动同步 + 立即同步 + 近期同步）。 */
@@ -1569,14 +1585,16 @@ public class MainActivity extends Activity {
     /** 🔍 通知过滤面板。 */
     private void buildFilterPanel(LinearLayout p, LinearLayout.LayoutParams mp) {
         addLineText(p, "设置黑白名单、关键词优先级，控制哪些应用的通知进入统计与纪要。", "#90A4AE");
-        Button btnFilter = new Button(this);
-        btnFilter.setText("🔍 打开通知过滤设置");
+        Button btnFilter = UiKit.primary(this, "🔍 打开通知过滤设置");
         btnFilter.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 startActivity(new Intent(MainActivity.this, FilterActivity.class));
             }
         });
-        p.addView(btnFilter, mp);
+        LinearLayout.LayoutParams lpFilter = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpFilter.setMargins(0, dp(6), 0, dp(2));
+        p.addView(btnFilter, lpFilter);
     }
 
     /** 🔑 权限获取面板：通知监听 + 无障碍 + Xposed（占位）。 */
@@ -1595,16 +1613,17 @@ public class MainActivity extends Activity {
         stListener.setTextSize(13);
         stListener.setPadding(dp(4), dp(4), dp(4), dp(2));
         p.addView(stListener, mp);
-        Button btnListener = new Button(this);
-        btnListener.setText("🔔 去开启『通知使用权』");
+        Button btnListener = UiKit.primary(this, "🔔 开启通知使用权");
         btnListener.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { openNotificationAccess(); }
         });
-        p.addView(btnListener, mp);
+        LinearLayout.LayoutParams lpL = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpL.setMargins(0, dp(6), 0, dp(4));
+        p.addView(btnListener, lpL);
 
         // 无障碍辅助服务入口（补充通道，可捕获更多特殊通知）
-        Button btnAcc = new Button(this);
-        btnAcc.setText("♿ 开启『无障碍服务』（补充通道）");
+        Button btnAcc = UiKit.ghost(this, "♿ 开启无障碍服务");
         btnAcc.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 try {
@@ -1614,7 +1633,10 @@ public class MainActivity extends Activity {
                 }
             }
         });
-        p.addView(btnAcc, mp);
+        LinearLayout.LayoutParams lpA = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpA.setMargins(0, dp(4), 0, dp(4));
+        p.addView(btnAcc, lpA);
 
         // ---- 获取模式切换：普通（通知监听+无障碍） vs Xposed ----
         TextView modeTip = new TextView(this);
@@ -1643,8 +1665,7 @@ public class MainActivity extends Activity {
         addLineText(p, "开启后在 LSPosed 启用本模块 → 作用域勾选微信(com.tencent.mm) → 强制停止微信。可 Hook 到“电脑登录也不推送”的消息。", "#90A4AE");
 
         // 去 LSPosed 引导
-        Button btnLsposed = new Button(this);
-        btnLsposed.setText("🧩 打开 LSPosed 管理器（需已装）");
+        Button btnLsposed = UiKit.ghost(this, "🧩 打开 LSPosed 管理器");
         btnLsposed.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 try {
@@ -1654,7 +1675,10 @@ public class MainActivity extends Activity {
                 }
             }
         });
-        p.addView(btnLsposed, mp);
+        LinearLayout.LayoutParams lpLsp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpLsp.setMargins(0, dp(4), 0, dp(4));
+        p.addView(btnLsposed, lpLsp);
 
         // ---- 后台保活引导（锁屏/后台收不到的核心是 MIUI 后台限制）----
         TextView keepTip = new TextView(this);
@@ -1664,8 +1688,7 @@ public class MainActivity extends Activity {
         keepTip.setTextColor(Color.parseColor("#5A9BD5"));
         keepTip.setPadding(dp(4), dp(10), dp(4), dp(4));
         p.addView(keepTip, mp);
-        Button btnAutostart = new Button(this);
-        btnAutostart.setText("⚙️ 允许自启动（小米设置）");
+        Button btnAutostart = UiKit.primary(this, "⚙️ 允许自启动");
         btnAutostart.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 try {
@@ -1677,7 +1700,10 @@ public class MainActivity extends Activity {
                 }
             }
         });
-        p.addView(btnAutostart, mp);
+        LinearLayout.LayoutParams lpAuto = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpAuto.setMargins(0, dp(4), 0, dp(4));
+        p.addView(btnAutostart, lpAuto);
         addLineText(p, "小米还需：设置-应用-NotifyBridge-省电策略设为「无限制」，并允许后台运行与自启动。锁屏收不到通常因后台被限制。", "#90A4AE");
 
         // Xposed 状态提示（读 /data/local/tmp 或广播收不到时提示排查）
@@ -1693,32 +1719,28 @@ public class MainActivity extends Activity {
 
     /** 🗄️ 存储管理面板。 */
     private void buildStoragePanel(LinearLayout p, LinearLayout.LayoutParams mp) {
-        TextView title = new TextView(this);
-        title.setText("📁 每日 MD 日志");
-        title.setTextSize(15);
-        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        title.setTextColor(Color.parseColor("#37474F"));
-        title.setPadding(dp(2), dp(4), dp(2), dp(2));
+        TextView title = UiKit.sectionTitle(this, "📁 每日 MD 日志");
         p.addView(title, mp);
 
         final LinearLayout logList = new LinearLayout(this);
         logList.setOrientation(LinearLayout.VERTICAL);
         p.addView(logList, mp);
 
-        Button btnRefresh = new Button(this);
-        btnRefresh.setText("🔄 刷新列表");
+        Button btnRefresh = UiKit.ghost(this, "🔄 刷新列表");
         btnRefresh.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 renderDailyFiles(logList);
                 showToast("已刷新", false);
             }
         });
-        p.addView(btnRefresh, mp);
+        LinearLayout.LayoutParams lpRef = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpRef.setMargins(0, dp(4), 0, dp(6));
+        p.addView(btnRefresh, lpRef);
 
         renderDailyFiles(logList);
 
-        Button btnClearCache = new Button(this);
-        btnClearCache.setText("🗑️ 清空通知缓存");
+        Button btnClearCache = UiKit.ghost(this, "🗑️ 清空通知缓存");
         btnClearCache.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 int n = NotificationCache.clearAll(MainActivity.this);
@@ -1726,16 +1748,21 @@ public class MainActivity extends Activity {
                 showToast("已清空 " + n + " 条缓存", false);
             }
         });
-        p.addView(btnClearCache, mp);
-        Button btnClearLog = new Button(this);
-        btnClearLog.setText("🗑️ 清空日志");
+        LinearLayout.LayoutParams lpCc = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpCc.setMargins(0, dp(4), 0, dp(4));
+        p.addView(btnClearCache, lpCc);
+        Button btnClearLog = UiKit.ghost(this, "🗑️ 清空日志");
         btnClearLog.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 LogStore.clear(MainActivity.this);
                 showToast("日志已清空", false);
             }
         });
-        p.addView(btnClearLog, mp);
+        LinearLayout.LayoutParams lpCl = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lpCl.setMargins(0, dp(4), 0, 0);
+        p.addView(btnClearLog, lpCl);
     }
 
     /** 在存储管理面板里列出 dailynote md 文件，点击可预览内容。 */
