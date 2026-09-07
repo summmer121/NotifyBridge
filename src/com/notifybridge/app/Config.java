@@ -47,6 +47,7 @@ public final class Config {
 
     // 其他状态
     public static final String KEY_LAST_SYNC = "last_sync_time";
+    public static final String KEY_LAST_RUN_DAY = "last_run_day";   // 上次运行日期 yyyy-MM-dd（用于换日检测）
     public static final String KEY_CACHED_COUNT = "cached_count";
     public static final String KEY_KEEP_RECORDS = "keep_records";   // 滚动保留：最多保留多少条通知记录(超出自动删最旧)，默认2000
 

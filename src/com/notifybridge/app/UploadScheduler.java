@@ -5,54 +5,64 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 
+import java.util.Calendar;
+
 /**
- * 定时批量上传调度器。使用 AlarmManager 在后台周期性触发上传，
- * 避免频繁网络请求，也无需依赖 WorkManager（AndroidX）。
+ * 定时上传调度器：每天固定 12:00 与 18:00 各上传一次到 WebDAV。
+ * 使用 AlarmManager 一次性闹钟 + 触发后重设下一天，避免 10 分钟级别的频繁网络请求。
  */
 public final class UploadScheduler {
-    private static final int REQ_UPLOAD = 1001;
-    private static volatile long lastTriggerMs = 0L;
-    private static final long TRIGGER_THROTTLE_MS = 60 * 1000L;
+    public static final String ACTION_NOON = "com.notifybridge.app.UPLOAD_NOON";      // 12:00
+    public static final String ACTION_EVENING = "com.notifybridge.app.UPLOAD_EVENING";// 18:00
+
+    private static final int REQ_NOON = 1001;
+    private static final int REQ_EVENING = 1002;
 
     private UploadScheduler() {}
 
-    /** 广播触发的 intent-factory。 */
-    private static PendingIntent pending(Context ctx) {
-        Intent i = new Intent(ctx, UploadReceiver.class).setAction("com.notifybridge.app.UPLOAD");
-        // FLAG_IMMUTABLE 为 Android 12+ 必需
-        return PendingIntent.getBroadcast(ctx, REQ_UPLOAD, i,
+    private static PendingIntent pending(Context ctx, String action, int req) {
+        Intent i = new Intent(ctx, UploadReceiver.class).setAction(action);
+        return PendingIntent.getBroadcast(ctx, req, i,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
-    /** 设置周期性定时上传（默认每 10 分钟）。 */
-    public static void scheduleRepeating(Context ctx) {
+    /** 安排今天（或明天）的 12:00 与 18:00 定时上传。 */
+    public static void scheduleDaily(Context ctx) {
         if (!Config.getBool(ctx, Config.KEY_SYNC_ENABLED, false)) return;
-        int interval =
-                Config.getInt(ctx, Config.KEY_UPLOAD_INTERVAL_MS, 10 * 60 * 1000);
-        if (interval < 60 * 1000) interval = 60 * 1000; // 下限 1 分钟
-
-        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
-        // 用 setInexactRepeating 避免 exact alarm 权限限制，省电且适配国产 ROM
-        am.setInexactRepeating(AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + interval, interval, pending(ctx));
+        planSlot(ctx, ACTION_NOON, REQ_NOON, 12);
+        planSlot(ctx, ACTION_EVENING, REQ_EVENING, 18);
     }
 
-    /** 取消定时上传。 */
+    /** 给某个时刻槽安排下一次（今天若已过则安排明天）。 */
+    private static void planSlot(Context ctx, String action, int req, int hour) {
+        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+        Calendar c = Calendar.getInstance();
+        c.set(Calendar.HOUR_OF_DAY, hour);
+        c.set(Calendar.MINUTE, 0);
+        c.set(Calendar.SECOND, 0);
+        c.set(Calendar.MILLISECOND, 0);
+        if (c.getTimeInMillis() <= System.currentTimeMillis()) {
+            c.add(Calendar.DAY_OF_YEAR, 1);  // 今天该时刻已过，安排明天
+        }
+        long trigger = c.getTimeInMillis();
+        // 非精确闹钟：省电、规避国产 ROM 的精确闹钟权限限制
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pending(ctx, action, req));
+        } else {
+            am.set(AlarmManager.RTC_WAKEUP, trigger, pending(ctx, action, req));
+        }
+    }
+
+    /** 定时触发后，由 receiver 调用以安排下一次对应时刻。 */
+    public static void scheduleSlot(Context ctx, String action) {
+        if (ACTION_NOON.equals(action)) planSlot(ctx, ACTION_NOON, REQ_NOON, 12);
+        else if (ACTION_EVENING.equals(action)) planSlot(ctx, ACTION_EVENING, REQ_EVENING, 18);
+    }
+
+    /** 取消所有定时上传。 */
     public static void cancel(Context ctx) {
         AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
-        am.cancel(pending(ctx));
-    }
-
-    /** 立即触发一次上传（写缓存阈值或手动同步）。 */
-    public static void triggerUpload(Context ctx) {
-        if (!Config.getBool(ctx, Config.KEY_SYNC_ENABLED, false)) {
-            // 自动触发仅在开启同步时生效；手动按钮单独走 MainActivity
-            return;
-        }
-        long now = System.currentTimeMillis();
-        if (now - lastTriggerMs < TRIGGER_THROTTLE_MS) return; // 节流：至少间隔 60s
-        lastTriggerMs = now;
-        AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
-        am.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 100, pending(ctx));
+        am.cancel(pending(ctx, ACTION_NOON, REQ_NOON));
+        am.cancel(pending(ctx, ACTION_EVENING, REQ_EVENING));
     }
 }

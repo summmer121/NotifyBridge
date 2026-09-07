@@ -11,8 +11,12 @@ public class UploadReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
-        if ("com.notifybridge.app.UPLOAD".equals(intent.getAction())) {
+        String action = intent.getAction();
+        if (UploadScheduler.ACTION_NOON.equals(action)
+                || UploadScheduler.ACTION_EVENING.equals(action)) {
             Uploader.run(context, null); // 后台静默上传
+            // 安排下一次同一时刻
+            UploadScheduler.scheduleSlot(context, action);
         }
     }
 }

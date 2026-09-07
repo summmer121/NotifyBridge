@@ -83,8 +83,6 @@ public class NotifyListener extends NotificationListenerService {
                 String readable = (merged.isEmpty() ? "" : merged) +
                         (merged.isEmpty() || body.isEmpty() ? "" : " ") + body;
                 DailyLog.append(ctx, postTime, "[" + appName + "] " + readable.trim());
-                // 有新通知则唤醒一次同步（Uploader 单线程串行且节流，不堆积）
-                UploadScheduler.triggerUpload(ctx);
                 // 累加当日统计（图表看板数据源）
                 String cat = classify(body + title);
                 StatsStore.record(ctx, postTime, pkg, cat);
@@ -104,7 +102,7 @@ public class NotifyListener extends NotificationListenerService {
     public void onListenerConnected() {
         // 连接成功（用户授予通知使用权），可在此重排定时任务，并记录诊断日志
         LogStore.diag(getApplicationContext(), "通知监听已连接，开始捕获");
-        UploadScheduler.scheduleRepeating(this);
+        UploadScheduler.scheduleDaily(this);
         // 启动前台保活，降低后台被杀概率
         startKeepAlive();
     }

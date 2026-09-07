@@ -82,6 +82,23 @@ public class MainActivity extends Activity {
         refreshListenerState();
         startLogRefresh();
         autoGenYesterdayIfMissing(); // 检查昨天纪要，缺失则自动补生成
+        checkFirstLoginOfDay();      // 次日首次登录：上传昨天的全量日志
+    }
+
+    /** 换日检测：当天首次打开 App 时，上传昨天全量日志并记录本次运行日期。 */
+    private void checkFirstLoginOfDay() {
+        String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                .format(new java.util.Date());
+        String last = Config.get(this, Config.KEY_LAST_RUN_DAY, "");
+        boolean firstLogin = !today.equals(last);
+        Config.put(this, Config.KEY_LAST_RUN_DAY, today);
+        if (firstLogin && Config.getBool(this, Config.KEY_SYNC_ENABLED, false)) {
+            Uploader.uploadYesterdayFull(this, new Uploader.Callback() {
+                @Override public void onResult(boolean ok, String msg) {
+                    showToast(msg, !ok);
+                }
+            });
+        }
     }
 
     /**
@@ -704,12 +721,12 @@ public class MainActivity extends Activity {
         lblSync.setTextColor(ThemeManager.text(this));
         swSync = new Switch(this);
         swSync.setChecked(Config.getBool(this, Config.KEY_SYNC_ENABLED, false));
-        swSync.setOnCheckedChangeListener((v, isOn) -> {
-            Config.putBool(this, Config.KEY_SYNC_ENABLED, isOn);
-            if (isOn) UploadScheduler.scheduleRepeating(this);
-            else UploadScheduler.cancel(this);
-            showToast(isOn ? "已开启自动同步" : "已关闭自动同步", false);
-        });
+            swSync.setOnCheckedChangeListener((v, isOn) -> {
+                Config.putBool(this, Config.KEY_SYNC_ENABLED, isOn);
+                if (isOn) UploadScheduler.scheduleDaily(this);
+                else UploadScheduler.cancel(this);
+                showToast(isOn ? "已开启自动同步" : "已关闭自动同步", false);
+            });
         row2.addView(lblSync, new LinearLayout.LayoutParams(0, -2, 1f));
         row2.addView(swSync);
         root.addView(row2, mp);
@@ -725,7 +742,7 @@ public class MainActivity extends Activity {
         LinearLayout row3 = new LinearLayout(this);
         row3.setOrientation(LinearLayout.HORIZONTAL);
         row3.setGravity(Gravity.CENTER_VERTICAL);
-        Button btnSyncNow = UiKit.primary(this, "⚡ 立即同步");
+        Button btnSyncNow = UiKit.primary(this, "📤 上传昨日全量");
         btnSyncNow.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { syncNow(); }
         });
@@ -2025,7 +2042,7 @@ public class MainActivity extends Activity {
                 : "⚠️ 通知监听未开启，请先在系统设置中授权");
         tvStatus.setTextColor(on ? okColor() : warnColor());
         if (on) {
-            UploadScheduler.scheduleRepeating(this);
+            UploadScheduler.scheduleDaily(this);
             startKeepAlive();
         }
     }
@@ -2077,7 +2094,7 @@ public class MainActivity extends Activity {
     }
 
     private void syncNow() {
-        Uploader.run(this, new Uploader.Callback() {
+        Uploader.uploadYesterdayFull(this, new Uploader.Callback() {
             @Override public void onResult(boolean ok, String msg) {
                 refreshCachedCount();
                 showToast(msg, !ok);
