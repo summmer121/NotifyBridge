@@ -82,10 +82,10 @@ public class MainActivity extends Activity {
         refreshListenerState();
         startLogRefresh();
         autoGenYesterdayIfMissing(); // 检查昨天纪要，缺失则自动补生成
-        checkFirstLoginOfDay();      // 次日首次登录：上传昨天的全量日志
+        checkFirstLoginOfDay();      // 次日首次登录：昨日全量(有则跳过)+今日非全量
     }
 
-    /** 换日检测：当天首次打开 App 时，上传昨天全量日志并记录本次运行日期。 */
+    /** 换日检测：当天首次打开 App 时，上传昨日全量(有则跳过)+今日非全量，并记录运行日期。 */
     private void checkFirstLoginOfDay() {
         String today = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
                 .format(new java.util.Date());
@@ -93,7 +93,7 @@ public class MainActivity extends Activity {
         boolean firstLogin = !today.equals(last);
         Config.put(this, Config.KEY_LAST_RUN_DAY, today);
         if (firstLogin && Config.getBool(this, Config.KEY_SYNC_ENABLED, false)) {
-            Uploader.uploadYesterdayFull(this, new Uploader.Callback() {
+            Uploader.uploadManual(this, new Uploader.Callback() {
                 @Override public void onResult(boolean ok, String msg) {
                     showToast(msg, !ok);
                 }
@@ -742,7 +742,7 @@ public class MainActivity extends Activity {
         LinearLayout row3 = new LinearLayout(this);
         row3.setOrientation(LinearLayout.HORIZONTAL);
         row3.setGravity(Gravity.CENTER_VERTICAL);
-        Button btnSyncNow = UiKit.primary(this, "📤 上传昨日全量");
+        Button btnSyncNow = UiKit.primary(this, "📤 手动同步");
         btnSyncNow.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { syncNow(); }
         });
@@ -2094,7 +2094,7 @@ public class MainActivity extends Activity {
     }
 
     private void syncNow() {
-        Uploader.uploadYesterdayFull(this, new Uploader.Callback() {
+        Uploader.uploadManual(this, new Uploader.Callback() {
             @Override public void onResult(boolean ok, String msg) {
                 refreshCachedCount();
                 showToast(msg, !ok);

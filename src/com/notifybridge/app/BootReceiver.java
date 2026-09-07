@@ -15,8 +15,8 @@ public class BootReceiver extends BroadcastReceiver {
         if (Intent.ACTION_BOOT_COMPLETED.equals(action)
                 || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
             UploadScheduler.scheduleDaily(context);
-            // 开机/升级后补传昨天的全量日志
-            Uploader.uploadYesterdayFull(context, null);
+            // 开机/升级后补传：昨日全量（有则跳过）+今日非全量
+            Uploader.uploadManual(context, null);
         }
     }
 }

@@ -23,6 +23,7 @@ public final class DailyLog {
     private static final String DIR = "dailylogs";
     private static final String PREFIX = "dailynote";
     private static final String UP_PREF = "dailylog_uploaded";
+    private static final String FULL_PREF = "dailylog_full";
 
     // Avoid re-scanning the directory on every append; throttle to once an hour.
     private static volatile long lastSweepMs = 0L;
@@ -162,6 +163,22 @@ public final class DailyLog {
     public static boolean isUploaded(Context c, String fileName) {
         try {
             return c.getSharedPreferences(UP_PREF, Context.MODE_PRIVATE)
+                    .getBoolean(fileName, false);
+        } catch (Exception ignored) { return false; }
+    }
+
+    /** Mark a dailynote file as "full uploaded" (yesterday's complete log synced). */
+    public static void markFullUploaded(Context c, String fileName, boolean uploaded) {
+        try {
+            c.getSharedPreferences(FULL_PREF, Context.MODE_PRIVATE)
+                    .edit().putBoolean(fileName, uploaded).apply();
+        } catch (Exception ignored) {}
+    }
+
+    /** Whether a dailynote file has already been uploaded as a full (yesterday) log. */
+    public static boolean isFullUploaded(Context c, String fileName) {
+        try {
+            return c.getSharedPreferences(FULL_PREF, Context.MODE_PRIVATE)
                     .getBoolean(fileName, false);
         } catch (Exception ignored) { return false; }
     }

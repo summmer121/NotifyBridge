@@ -35,7 +35,7 @@ public final class Uploader {
     /** 生成上传到云端文件的第一行状态说明。 */
     private static String statusLine(File f, long now) {
         boolean full = !isToday(f.getName(), now);
-        String label = full ? "全量日志" : "当日新增";
+        String label = full ? "全量日志" : "非全量（今日）";
         String ts = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date(now));
         return "> 日志状态：" + label + " · 上传时间 " + ts + "\n\n";
     }
@@ -145,8 +145,13 @@ public final class Uploader {
         });
     }
 
-    /** 上传"昨天"的全量日志（次日首次登录 / 手动同步时调用）。 */
-    public static void uploadYesterdayFull(final Context ctx, final Callback cb) {
+    /**
+     * 手动上传：按用户要求处理"昨天 + 今天"两份日志。
+     * 1. 昨天：若已作为全量上传过则跳过；否则上传昨天全量并标记。
+     * 2. 今天：总是上传，首行标注"非全量"，并显示上传时间。
+     * 供次日首次登录、开机补传、手动同步调用。
+     */
+    public static void uploadManual(final Context ctx, final Callback cb) {
         EXEC.submit(new Runnable() {
             @Override public void run() {
                 boolean ok;
@@ -163,28 +168,51 @@ public final class Uploader {
                         LogStore.diag(ctx, "⚠️ 使用明文 HTTP，WebDAV 凭证会以 Base64 明文传输，请优先启用 HTTPS");
                     }
                     LogStore.diag(ctx, "WebDAV 目标: " + client.getBaseUrl());
+
+                    StringBuilder parts = new StringBuilder();
+
                     String dayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.US)
                             .format(new Date(System.currentTimeMillis() - 24L * 3600L * 1000L));
                     File f = DailyLog.fileForDay(ctx, dayKey);
                     if (f == null || !f.exists()) {
-                        ok = true;
-                        msg = "昨天（" + dayKey + "）无日志可上传";
+                        parts.append("昨日无日志，");
+                    } else if (DailyLog.isFullUploaded(ctx, f.getName())) {
+                        parts.append("昨日日志已全量上传，跳过；");
+                        LogStore.diag(ctx, "⏭ 昨日日志已全量上传，跳过: " + f.getName());
                     } else {
                         String body = DailyLog.readFile(f);
                         String cloud = statusLine(f, System.currentTimeMillis()) + body;
                         client.uploadText(f.getName(), cloud);
                         DailyLog.markUploaded(ctx, f.getName(), true);
-                        Config.put(ctx, Config.KEY_LAST_SYNC, String.valueOf(System.currentTimeMillis()));
+                        DailyLog.markFullUploaded(ctx, f.getName(), true);
                         LogStore.diag(ctx, "✅ 昨天全量日志已上传: " + f.getName()
                                 + "（" + body.length() + "字节 → " + client.getBaseUrl() + f.getName() + "）");
-                        ok = true;
-                        msg = "已上传昨天全量日志 " + f.getName();
+                        parts.append("已上传昨日全量 ").append(f.getName()).append("；");
                     }
+
+                    String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                            .format(new Date());
+                    File t = DailyLog.fileForDay(ctx, todayKey);
+                    if (t == null || !t.exists()) {
+                        parts.append("今日暂无日志。");
+                    } else {
+                        String body = DailyLog.readFile(t);
+                        String cloud = statusLine(t, System.currentTimeMillis()) + body;
+                        client.uploadText(t.getName(), cloud);
+                        DailyLog.markUploaded(ctx, t.getName(), true);
+                        LogStore.diag(ctx, "✅ 今日非全量日志已上传: " + t.getName()
+                                + "（" + body.length() + "字节 → " + client.getBaseUrl() + t.getName() + "）");
+                        parts.append("已上传今日非全量 ").append(t.getName()).append("。");
+                    }
+
+                    Config.put(ctx, Config.KEY_LAST_SYNC, String.valueOf(System.currentTimeMillis()));
+                    ok = true;
+                    msg = parts.toString();
                 } catch (Exception e) {
                     Log.w(TAG, "upload yesterday error", e);
                     ok = false;
                     String em = e.getMessage();
-                    LogStore.diag(ctx, "❌ 昨天日志上传失败: " + (em == null ? e.getClass().getSimpleName() : em));
+                    LogStore.diag(ctx, "❌ 手动上传失败: " + (em == null ? e.getClass().getSimpleName() : em));
                     msg = "上传失败：" + (em == null ? e.getClass().getSimpleName() : em);
                 }
 
