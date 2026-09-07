@@ -110,12 +110,18 @@ public final class Uploader {
                     } else {
                         int up = 0;
                         long totalBytes = 0;
+                        long now = System.currentTimeMillis();
                         for (File f : files) {
                             String body = DailyLog.readFile(f);
                             if (body.isEmpty()) continue;
                             if (totalBytes + body.length() > 1024 * 1024) break;  // 累积上限 ~1MB
+                            // 昨日的文件若已作为"全量"上传过，定时任务不再重复覆盖/重复标注
+                            if (!isToday(f.getName(), now) && DailyLog.isFullUploaded(ctx, f.getName())) {
+                                LogStore.diag(ctx, "⏭ 昨日已全量上传，定时同步跳过: " + f.getName());
+                                continue;
+                            }
                             // 云端文件第一行标注是否全量 + 上传时间，然后附上正文
-                            String cloud = statusLine(f, System.currentTimeMillis()) + body;
+                            String cloud = statusLine(f, now) + body;
                             client.uploadText(f.getName(), cloud);
                             DailyLog.markUploaded(ctx, f.getName(), true);
                             LogStore.diag(ctx, "✅ 上传成功: " + f.getName()
