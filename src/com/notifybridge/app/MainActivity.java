@@ -1854,9 +1854,18 @@ public class MainActivity extends Activity {
             try { date = day.format(new java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).parse(ymd)); } catch (Exception ignored) {}
             long kb = f.length() / 1024;
             String size = kb > 0 ? kb + " KB" : (f.length() + " B");
-
             TextView row = new TextView(this);
-            row.setText(date + "   " + size);
+            String base = date + "   " + size;
+            boolean fullUploaded = DailyLog.isFullUploaded(MainActivity.this, name);
+            if (fullUploaded) {
+                android.text.SpannableString sp = new android.text.SpannableString(base + "   ✓ 已上传");
+                int start = base.length() + 3;
+                sp.setSpan(new android.text.style.ForegroundColorSpan(ThemeManager.accent(this)),
+                        start, sp.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                row.setText(sp);
+            } else {
+                row.setText(base);
+            }
             row.setTextSize(14);
             row.setTextColor(ThemeManager.text(this));
             row.setPadding(dp(12), dp(12), dp(12), dp(12));
